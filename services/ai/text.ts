@@ -1,13 +1,22 @@
 import * as geminiText from "@/services/ai/gemini-text"
 import * as openaiText from "@/services/ai/openai"
+import { hasEnvOpenAiApiKey } from "@/services/ai/env"
 import type { TextCompletionContext, TextCompletionResult } from "@/services/ai/types"
 import type { SettingsBundle } from "@/types/app"
 import type { Enums } from "@/types/database"
 
 type TextProvider = Enums<"ai_provider">
 
-export function resolveTextProvider(settings: SettingsBundle): TextProvider {
-  return settings.text_ai_provider ?? "gemini"
+export function resolveTextProvider(
+  settings: SettingsBundle | null | undefined,
+): TextProvider {
+  const requested = settings?.text_ai_provider ?? "gemini"
+
+  if (requested === "openai" && !hasEnvOpenAiApiKey()) {
+    return "gemini"
+  }
+
+  return requested
 }
 
 function getProviderModule(settings: SettingsBundle) {

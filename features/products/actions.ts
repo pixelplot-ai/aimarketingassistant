@@ -6,6 +6,7 @@ import sharp from "sharp"
 import OpenAI from "openai"
 
 import { getWorkspaceUserId } from "@/lib/auth/workspace"
+import { createAdminSignedUrl } from "@/services/storage/upload"
 import { AppError } from "@/lib/errors/app-error"
 import {
   productFormSchema,
@@ -18,6 +19,7 @@ import {
   resolveGeminiTextModel,
   DEFAULT_GEMINI_TEXT_MODEL,
 } from "@/services/ai/gemini-models"
+import { resolveTextProvider } from "@/services/ai/text"
 import { createAdminClient } from "@/services/supabase/admin"
 import { createClient } from "@/services/supabase/server"
 import type { ActionResult, SettingsBundle } from "@/types/app"
@@ -226,7 +228,7 @@ async function extractProductInfoFromHtml(
   productType: ProductType,
   settings: SettingsBundle | null,
 ): Promise<AiExtractionResult> {
-  const provider = settings?.text_ai_provider ?? "openai"
+  const provider = resolveTextProvider(settings)
 
   if (provider === "gemini") {
     return extractWithGemini(
@@ -575,6 +577,51 @@ export async function getProducts(): Promise<ActionResult<ProductRow[]>> {
     }
 
     return { success: true, data: data ?? [] }
+  } catch (error) {
+    return { success: false, error: AppError.fromUnknown(error).userMessage }
+  }
+}
+
+export type ProductImageSource = Pick<
+  ProductRow,
+  "id" | "image_storage_path" | "metadata"
+>
+
+export async function getProductImageUrls(
+  products: ProductImageSource[],
+): Promise<ActionResult<Record<string, string>>> {
+  try {
+    await getAuthUserId()
+
+    const imageUrls: Record<string, string> = {}
+
+    await Promise.all(
+      products.map(async (product) => {
+        if (product.image_storage_path) {
+          const url = await createAdminSignedUrl(
+            "product-images",
+            product.image_storage_path,
+            60 * 60,
+          )
+          if (url) {
+            imageUrls[product.id] = url
+          }
+          return
+        }
+
+        const meta = product.metadata as Record<string, unknown> | null
+        const externalUrl =
+          typeof meta?.original_image_url === "string"
+            ? meta.original_image_url
+            : null
+
+        if (externalUrl) {
+          imageUrls[product.id] = externalUrl
+        }
+      }),
+    )
+
+    return { success: true, data: imageUrls }
   } catch (error) {
     return { success: false, error: AppError.fromUnknown(error).userMessage }
   }

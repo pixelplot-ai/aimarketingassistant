@@ -14,7 +14,7 @@ import {
   formatGeminiApiError,
   resolveGeminiTextModel,
 } from "@/services/ai/gemini-models"
-import { hasEnvOpenAiApiKey } from "@/services/ai/env"
+import { resolveTextProvider } from "@/services/ai/text"
 import type { SettingsBundle } from "@/types/app"
 
 export type BrandExtractResult = Omit<BrandProfileFormValues, "id">
@@ -265,10 +265,10 @@ export async function extractBrandInfoFromPageText(
   settings: SettingsBundle | null,
   defaults: BrandProfileFormValues,
 ): Promise<BrandExtractResult> {
-  const provider = settings?.text_ai_provider ?? "gemini"
+  const provider = resolveTextProvider(settings)
 
   const raw =
-    provider === "openai" && hasEnvOpenAiApiKey()
+    provider === "openai"
       ? await extractWithOpenAi(
           pageText,
           settings?.openai_model ?? "gpt-4o-mini",

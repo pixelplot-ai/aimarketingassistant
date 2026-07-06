@@ -31,30 +31,41 @@ export type RecentActivityItem = {
   platform_name: string
 }
 
-export async function getDashboardStats(userId: string): Promise<DashboardStats> {
+async function countPostsByStatus(
+  userId: string,
+  status?: Enums<"post_status">,
+): Promise<number> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("posts")
-    .select("status")
+    .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .is("deleted_at", null)
+
+  if (status) {
+    query = query.eq("status", status)
+  }
+
+  const { count, error } = await query
 
   if (error) {
     throw new Error(error.message)
   }
 
-  const posts = data ?? []
-  const countByStatus = (status: Enums<"post_status">) =>
-    posts.filter((post) => post.status === status).length
+  return count ?? 0
+}
 
-  return {
-    total: posts.length,
-    draft: countByStatus("draft"),
-    scheduled: countByStatus("scheduled"),
-    published: countByStatus("published"),
-    failed: countByStatus("failed"),
-  }
+export async function getDashboardStats(userId: string): Promise<DashboardStats> {
+  const [total, draft, scheduled, published, failed] = await Promise.all([
+    countPostsByStatus(userId),
+    countPostsByStatus(userId, "draft"),
+    countPostsByStatus(userId, "scheduled"),
+    countPostsByStatus(userId, "published"),
+    countPostsByStatus(userId, "failed"),
+  ])
+
+  return { total, draft, scheduled, published, failed }
 }
 
 export async function getRecentPosts(
@@ -109,25 +120,6 @@ export async function getRecentActivity(
 ): Promise<RecentActivityItem[]> {
   const supabase = await createClient()
 
-  const { data: userPosts, error: postsError } = await supabase
-    .from("posts")
-    .select("id, title")
-    .eq("user_id", userId)
-    .is("deleted_at", null)
-
-  if (postsError) {
-    throw new Error(postsError.message)
-  }
-
-  const postIds = (userPosts ?? []).map((post) => post.id)
-  if (postIds.length === 0) {
-    return []
-  }
-
-  const postTitleById = new Map(
-    (userPosts ?? []).map((post) => [post.id, post.title]),
-  )
-
   const { data, error } = await supabase
     .from("publication_logs")
     .select(
@@ -139,12 +131,18 @@ export async function getRecentActivity(
       published_at,
       post_id,
       platform_id,
+      posts!inner (
+        title,
+        user_id,
+        deleted_at
+      ),
       platforms (
         display_name
       )
     `,
     )
-    .in("post_id", postIds)
+    .eq("posts.user_id", userId)
+    .is("posts.deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(limit)
 
@@ -160,6 +158,7 @@ export async function getRecentActivity(
     published_at: string | null
     post_id: string
     platform_id: string
+    posts: { title: string; user_id: string; deleted_at: string | null }
     platforms: { display_name: string } | null
   }
 
@@ -172,7 +171,7 @@ export async function getRecentActivity(
     error_message: item.error_message,
     published_at: item.published_at,
     post_id: item.post_id,
-    post_title: postTitleById.get(item.post_id) ?? "Untitled post",
+    post_title: item.posts.title ?? "Untitled post",
     platform_id: item.platform_id,
     platform_name: item.platforms?.display_name ?? item.platform_id,
   }))

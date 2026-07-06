@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { User } from "@supabase/supabase-js"
 
 import { isAdminEmail } from "@/lib/auth/admin"
@@ -139,7 +140,7 @@ export async function initializeWorkspaceForUser(userId: string): Promise<string
   return ownerId
 }
 
-export async function getWorkspaceOwnerId(): Promise<string> {
+export const getWorkspaceOwnerId = cache(async (): Promise<string> => {
   const user = await requireAuth()
 
   if (!isAdminEmail(user.email)) {
@@ -151,6 +152,21 @@ export async function getWorkspaceOwnerId(): Promise<string> {
   }
 
   const envOwner = getEnvWorkspaceOwnerId()
+  const existing = await readWorkspaceOwnerFromDb()
+
+  if (existing) {
+    if (envOwner && existing !== envOwner) {
+      throw new AppError({
+        code: "INTERNAL",
+        message: `Workspace owner mismatch: expected ${envOwner}, got ${existing}`,
+        userMessage:
+          "Workspace owner is already set and does not match WORKSPACE_OWNER_USER_ID.",
+      })
+    }
+
+    return existing
+  }
+
   if (envOwner) {
     const pinnedOwner = await pinWorkspaceOwner(envOwner)
     await ensureWorkspaceMember(user.id)
@@ -167,18 +183,12 @@ export async function getWorkspaceOwnerId(): Promise<string> {
     return pinnedOwner
   }
 
-  const existing = await readWorkspaceOwnerFromDb()
-  if (existing) {
-    await ensureWorkspaceMember(user.id)
-    return existing
-  }
-
   return initializeWorkspaceForUser(user.id)
-}
+})
 
-export async function getWorkspaceUserId(): Promise<string> {
+export const getWorkspaceUserId = cache(async (): Promise<string> => {
   return getWorkspaceOwnerId()
-}
+})
 
 export async function requireAdminAuth(): Promise<{
   user: User

@@ -24,7 +24,6 @@ import {
   mapSettingsToAiForm,
   mapSettingsToAppForm,
 } from "@/features/settings/lib/mappers"
-import { requireAuth } from "@/lib/auth/require-auth"
 import { getWorkspaceUserId } from "@/lib/auth/workspace"
 
 export const metadata: Metadata = {
@@ -36,7 +35,6 @@ type SettingsPageProps = {
 }
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
-  await requireAuth()
   const workspaceUserId = await getWorkspaceUserId()
   const { tab, connected, error: oauthError } = await searchParams
   const defaultTab =

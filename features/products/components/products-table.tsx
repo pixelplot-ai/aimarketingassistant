@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useTransition, useState } from "react"
+import { useEffect, useTransition, useState } from "react"
 import { toast } from "sonner"
 import {
   ImageOff,
@@ -32,13 +32,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { deleteProduct, type ProductRow } from "@/features/products/actions"
+import { deleteProduct, getProductImageUrls, type ProductRow } from "@/features/products/actions"
 import { ProductForm } from "@/features/products/components/product-form"
 import { PRODUCT_TYPE_LABELS } from "@/lib/validations/product"
 
 interface ProductsTableProps {
   products: ProductRow[]
-  imageUrls: Record<string, string>
 }
 
 function ProductTypeBadge({ type }: { type: "product" | "service" }) {
@@ -204,8 +203,26 @@ function ProductTableRow({
   )
 }
 
-export function ProductsTable({ products, imageUrls }: ProductsTableProps) {
+export function ProductsTable({ products }: ProductsTableProps) {
   const router = useRouter()
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadImageUrls() {
+      const result = await getProductImageUrls(products)
+      if (!cancelled && result.success) {
+        setImageUrls(result.data)
+      }
+    }
+
+    void loadImageUrls()
+
+    return () => {
+      cancelled = true
+    }
+  }, [products])
 
   if (products.length === 0) {
     return (
