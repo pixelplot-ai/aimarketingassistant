@@ -1,7 +1,7 @@
 import "@/features/integrations/registry"
 import { getConnector } from "@/features/integrations/registry"
 import { decryptToken } from "@/features/integrations/shared/token-encryption"
-import type { ConnectionContext, PublishInput } from "@/features/integrations/types"
+import type { ConnectionContext, PublishInput, PublishResult } from "@/features/integrations/types"
 import { createAdminClient } from "@/services/supabase/admin"
 import {
   bucketForMediaType,
@@ -197,26 +197,55 @@ async function publishToPlatform(
     return { success: false, error }
   }
 
-  const accessToken = decryptToken(connection.access_token_encrypted)
-  const connector = getConnector(platformId)
-  const imageUrl = post.media_type === "image" ? await resolveImageUrl(post.id) : null
+  let result: PublishResult
+  try {
+    const connector = getConnector(platformId)
+    const accessToken = decryptToken(connection.access_token_encrypted)
+    const imageUrl =
+      post.media_type === "image" ? await resolveImageUrl(post.id) : null
 
-  const publishInput: PublishInput = {
-    text: post.content,
-    imageUrl,
+    const publishInput: PublishInput = {
+      text: post.content,
+      imageUrl,
+    }
+
+    const connectionContext: ConnectionContext = {
+      externalAccountId: connection.external_account_id ?? "",
+      accountName: connection.account_name,
+      metadata: (connection.metadata ?? {}) as Record<string, unknown>,
+    }
+
+    result = await connector.publish(accessToken, publishInput, connectionContext)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Publish failed unexpectedly"
+    await writePublicationLog({
+      postId: post.id,
+      platformId,
+      platformConnectionId: connection.id,
+      status: "failed",
+      errorMessage: message,
+    })
+
+    if (jobId) {
+      const { data: job } = await supabase
+        .from("scheduled_jobs")
+        .select("attempts, max_attempts")
+        .eq("id", jobId)
+        .single()
+
+      const attempts = (job?.attempts ?? 0) + 1
+      const maxAttempts = job?.max_attempts ?? MAX_ATTEMPTS
+
+      await updateJobStatus(jobId, {
+        attempts,
+        last_error: message,
+        status: attempts >= maxAttempts ? "failed" : "pending",
+      })
+    }
+
+    return { success: false, error: message }
   }
-
-  const connectionContext: ConnectionContext = {
-    externalAccountId: connection.external_account_id ?? "",
-    accountName: connection.account_name,
-    metadata: (connection.metadata ?? {}) as Record<string, unknown>,
-  }
-
-  const result = await connector.publish(
-    accessToken,
-    publishInput,
-    connectionContext,
-  )
 
   if (result.success) {
     await writePublicationLog({
