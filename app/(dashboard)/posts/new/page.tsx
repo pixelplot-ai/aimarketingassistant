@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 
 import { createClient } from "@/services/supabase/server"
 import { getWorkspaceUserId } from "@/lib/auth/workspace"
+import { DEFAULT_TIMEZONE } from "@/lib/validations/settings"
 
 export const metadata: Metadata = {
   title: "New Post",
@@ -14,12 +15,7 @@ export default async function NewPostPage() {
   const workspaceUserId = await getWorkspaceUserId()
   const supabase = await createClient()
 
-  const [{ data: settings }, { data: brandProfile }] = await Promise.all([
-    supabase
-      .from("settings")
-      .select("timezone")
-      .eq("user_id", workspaceUserId)
-      .maybeSingle(),
+  const [{ data: brandProfile }] = await Promise.all([
     supabase
       .from("brand_profiles")
       .select("id")
@@ -36,7 +32,7 @@ export default async function NewPostPage() {
       media_type: "none",
       status: "draft",
       scheduled_at: null,
-      timezone: settings?.timezone ?? "UTC",
+      timezone: DEFAULT_TIMEZONE,
       brand_profile_id: brandProfile?.id ?? null,
     })
     .select("id")

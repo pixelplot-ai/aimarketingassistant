@@ -25,6 +25,7 @@ import {
   mapSettingsToAppForm,
 } from "@/features/settings/lib/mappers"
 import { getWorkspaceUserId } from "@/lib/auth/workspace"
+import { DEFAULT_TIMEZONE } from "@/lib/validations/settings"
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -77,7 +78,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         user_id: workspaceUserId,
         created_at: "",
         updated_at: "",
-        timezone: "UTC",
+        timezone: DEFAULT_TIMEZONE,
         date_format: "MM/dd/yyyy",
         default_post_status: "draft",
         default_platform_ids: [],
@@ -104,7 +105,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           user_id: workspaceUserId,
           created_at: "",
           updated_at: "",
-          timezone: "UTC",
+          timezone: DEFAULT_TIMEZONE,
           date_format: "MM/dd/yyyy",
           default_post_status: "draft",
           default_platform_ids: [],

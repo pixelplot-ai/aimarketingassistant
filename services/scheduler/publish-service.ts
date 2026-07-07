@@ -3,6 +3,10 @@ import { getConnector } from "@/features/integrations/registry"
 import { decryptToken } from "@/features/integrations/shared/token-encryption"
 import type { ConnectionContext, PublishInput } from "@/features/integrations/types"
 import { createAdminClient } from "@/services/supabase/admin"
+import {
+  bucketForMediaType,
+  createAdminSignedUrl,
+} from "@/services/storage/upload"
 import type { Json, Tables } from "@/types/database"
 
 const MAX_ATTEMPTS = 3
@@ -49,7 +53,7 @@ async function resolveImageUrl(postId: string): Promise<string | null> {
 
   const { data: media } = await supabase
     .from("post_media")
-    .select("storage_path")
+    .select("storage_path, media_type")
     .eq("post_id", postId)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -59,11 +63,8 @@ async function resolveImageUrl(postId: string): Promise<string | null> {
     return null
   }
 
-  const { data: signed } = await supabase.storage
-    .from("post-media")
-    .createSignedUrl(media.storage_path, 60 * 60)
-
-  return signed?.signedUrl ?? null
+  const bucket = bucketForMediaType(media.media_type)
+  return createAdminSignedUrl(bucket, media.storage_path, 60 * 60 * 24)
 }
 
 async function getPlatformConnection(

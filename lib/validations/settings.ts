@@ -51,7 +51,10 @@ export const DATE_FORMAT_OPTIONS = [
   "MMM d, yyyy",
 ] as const
 
+export const DEFAULT_TIMEZONE = "Europe/Bucharest"
+
 export const TIMEZONE_OPTIONS = [
+  DEFAULT_TIMEZONE,
   "UTC",
   "America/New_York",
   "America/Chicago",

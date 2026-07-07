@@ -18,6 +18,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state"
 import {
   connectFacebookWithEnvToken,
+  connectInstagramWithEnvPageToken,
   connectPlatform,
   disconnectPlatform,
   refreshConnection,
@@ -64,10 +65,13 @@ export function SocialConnections({
   const router = useRouter()
   const [loadingPlatform, setLoadingPlatform] = useState<string | null>(null)
 
-  async function handleConnectWithEnvToken() {
-    setLoadingPlatform("facebook")
+  async function handleConnectWithEnvToken(platformId: "facebook" | "instagram") {
+    setLoadingPlatform(platformId)
 
-    const result = await connectFacebookWithEnvToken()
+    const result =
+      platformId === "facebook"
+        ? await connectFacebookWithEnvToken()
+        : await connectInstagramWithEnvPageToken()
     setLoadingPlatform(null)
 
     if (!result.success) {
@@ -75,7 +79,11 @@ export function SocialConnections({
       return
     }
 
-    toast.success("Facebook Page connected via access token")
+    toast.success(
+      platformId === "facebook"
+        ? "Facebook Page connected via access token"
+        : "Instagram connected via Facebook Page token",
+    )
     router.refresh()
   }
 
@@ -145,6 +153,9 @@ export function SocialConnections({
           const connected = isConnected(platform.connection)
           const isLoading = loadingPlatform === platform.id
           const isLinkedIn = platform.id === "linkedin"
+          const usesEnvPageToken =
+            (platform.id === "facebook" || platform.id === "instagram") &&
+            facebookEnvTokenAvailable
           const brand = getPlatformBrandStyle(platform.icon_key)
 
           return (
@@ -198,15 +209,23 @@ export function SocialConnections({
               </CardContent>
 
               <CardFooter className="flex flex-wrap gap-2">
-                {platform.id === "facebook" && facebookEnvTokenAvailable ? (
+                {usesEnvPageToken ? (
                   <Button
                     disabled={isLoading || isLinkedIn}
-                    onClick={() => void handleConnectWithEnvToken()}
+                    onClick={() =>
+                      void handleConnectWithEnvToken(
+                        platform.id as "facebook" | "instagram",
+                      )
+                    }
                   >
                     {isLoading && !connected ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : null}
-                    {connected ? "Reconnect token" : "Connect with access token"}
+                    {connected
+                      ? "Reconnect token"
+                      : platform.id === "instagram"
+                        ? "Connect with page token"
+                        : "Connect with access token"}
                   </Button>
                 ) : (
                   <Button

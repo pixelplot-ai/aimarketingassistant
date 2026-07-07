@@ -7,7 +7,7 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton"
 import { Button } from "@/components/ui/button"
 import { getPlatforms, listPosts } from "@/features/posts/actions"
 import { PostsFilters } from "@/features/posts/components/posts-filters"
-import { PostsTable } from "@/features/posts/components/posts-table"
+import { PostsView } from "@/features/posts/components/posts-view"
 import type { PostFilterValues } from "@/lib/validations/post"
 
 export const metadata: Metadata = {
@@ -60,7 +60,7 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
         <PostsFilters platforms={platforms} />
       </Suspense>
 
-      <PostsTable data={postsResult.data} />
+      <PostsView data={postsResult.data} />
     </div>
   )
 }

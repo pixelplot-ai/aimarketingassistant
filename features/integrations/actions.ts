@@ -9,6 +9,7 @@ import {
   buildFacebookTokensFromEnv,
   hasEnvFacebookPageToken,
 } from "@/features/integrations/facebook/env-token"
+import { buildInstagramTokensFromEnv } from "@/features/integrations/instagram/connector"
 import "@/features/integrations/registry"
 import {
   getAllConnectors,
@@ -83,6 +84,15 @@ export async function connectPlatform(
       })
     }
 
+    if (platformId === "instagram" && hasEnvFacebookPageToken()) {
+      throw new AppError({
+        code: "VALIDATION",
+        message: "Use connectInstagramWithEnvPageToken for env token flow",
+        userMessage:
+          "Instagram can be connected with your Facebook Page access token. Use “Connect with page token” instead.",
+      })
+    }
+
     const connector = getConnector(platformId)
     const state = randomBytes(24).toString("hex")
     await setOAuthState(platformId, state)
@@ -112,6 +122,30 @@ export async function connectFacebookWithEnvToken(): Promise<ActionResult> {
 
     const tokens = await buildFacebookTokensFromEnv()
     await upsertPlatformConnectionFromOAuth(workspaceUserId, "facebook", tokens)
+
+    revalidatePath(SETTINGS_PATH)
+    return { success: true, data: undefined }
+  } catch (error) {
+    return toActionError(error)
+  }
+}
+
+/** Connect Instagram using the linked Facebook Page from FACEBOOK_PAGE_ACCESS_TOKEN. */
+export async function connectInstagramWithEnvPageToken(): Promise<ActionResult> {
+  try {
+    const workspaceUserId = await getWorkspaceUserId()
+
+    if (!hasEnvFacebookPageToken()) {
+      throw new AppError({
+        code: "VALIDATION",
+        message: "FACEBOOK_PAGE_ACCESS_TOKEN missing",
+        userMessage:
+          "Add FACEBOOK_PAGE_ACCESS_TOKEN to your server environment (Vercel), then redeploy.",
+      })
+    }
+
+    const tokens = await buildInstagramTokensFromEnv()
+    await upsertPlatformConnectionFromOAuth(workspaceUserId, "instagram", tokens)
 
     revalidatePath(SETTINGS_PATH)
     return { success: true, data: undefined }

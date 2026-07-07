@@ -62,7 +62,7 @@ CREATE TABLE public.workspace_members (
 CREATE TABLE public.settings (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id uuid NOT NULL UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
-  timezone text NOT NULL DEFAULT 'UTC',
+  timezone text NOT NULL DEFAULT 'Europe/Bucharest',
   date_format text NOT NULL DEFAULT 'MM/DD/YYYY',
   default_post_status public.post_status NOT NULL DEFAULT 'draft',
   default_platform_ids text[] NOT NULL DEFAULT '{}',
@@ -128,7 +128,7 @@ CREATE TABLE public.posts (
   content text NOT NULL DEFAULT '',
   status public.post_status NOT NULL DEFAULT 'draft',
   scheduled_at timestamptz,
-  timezone text NOT NULL DEFAULT 'UTC',
+  timezone text NOT NULL DEFAULT 'Europe/Bucharest',
   media_type public.media_type NOT NULL DEFAULT 'none',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),

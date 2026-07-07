@@ -78,6 +78,9 @@ import {
   type PostFormValues,
 } from "@/lib/validations/post"
 import {
+  DEFAULT_TIMEZONE,
+} from "@/lib/validations/settings"
+import {
   STRATEGY_CONTENT_TYPE_LABELS,
 } from "@/lib/validations/marketing-campaign"
 import { cn } from "@/lib/utils"
@@ -105,7 +108,7 @@ export function PostEditor({
   postId,
   initialValues,
   platforms,
-  defaultTimezone = "UTC",
+  defaultTimezone = DEFAULT_TIMEZONE,
   brandProfileComplete = false,
   initialMedia = null,
   currentStatus,

@@ -243,6 +243,39 @@ export function Sidebar() {
     })
   }
 
+  const collapseButton = (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size={collapsed ? "icon-sm" : "sm"}
+            className={cn(
+              "shrink-0 rounded-xl text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              !collapsed && "justify-start",
+            )}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={toggleCollapsed}
+          />
+        }
+      >
+        {collapsed ? (
+          <ChevronRight className="size-4" />
+        ) : (
+          <>
+            <ChevronLeft className="size-4" />
+            Collapse
+          </>
+        )}
+      </TooltipTrigger>
+      {collapsed ? (
+        <TooltipContent side="right" sideOffset={8}>
+          Expand sidebar
+        </TooltipContent>
+      ) : null}
+    </Tooltip>
+  )
+
   return (
     <TooltipProvider delay={200}>
       <aside
@@ -253,11 +286,14 @@ export function Sidebar() {
       >
         <div
           className={cn(
-            "flex h-14 items-center border-b border-sidebar-border/80 bg-sidebar-accent/30",
-            collapsed ? "justify-center px-2" : "px-4",
+            "flex shrink-0 items-center border-b border-sidebar-border/80 bg-sidebar-accent/30",
+            collapsed
+              ? "flex-col justify-center gap-1.5 px-2 py-2.5"
+              : "h-14 justify-between gap-2 px-3",
           )}
         >
           <AppLogo collapsed={collapsed} />
+          {collapseButton}
         </div>
 
         <nav
@@ -276,44 +312,6 @@ export function Sidebar() {
             />
           ))}
         </nav>
-
-        <div
-          className={cn(
-            "border-t border-sidebar-border p-2",
-            collapsed ? "flex justify-center" : "",
-          )}
-        >
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size={collapsed ? "icon-sm" : "sm"}
-                  className={cn(
-                    "rounded-xl text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                    !collapsed && "w-full justify-start",
-                  )}
-                  aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  onClick={toggleCollapsed}
-                />
-              }
-            >
-              {collapsed ? (
-                <ChevronRight className="size-4" />
-              ) : (
-                <>
-                  <ChevronLeft className="size-4" />
-                  Collapse
-                </>
-              )}
-            </TooltipTrigger>
-            {collapsed ? (
-              <TooltipContent side="right" sideOffset={8}>
-                Expand sidebar
-              </TooltipContent>
-            ) : null}
-          </Tooltip>
-        </div>
       </aside>
     </TooltipProvider>
   )

@@ -1,3 +1,4 @@
+import { DEFAULT_TIMEZONE } from "@/lib/validations/settings"
 import {
   addDays,
   addHours,
@@ -38,7 +39,7 @@ export function fromDatetimeLocalValue(value: string): string | null {
 
 export function toTimeInputValue(
   iso: string | null | undefined,
-  timezone = "UTC",
+  timezone = DEFAULT_TIMEZONE,
 ): string {
   if (!iso) {
     return "09:00"
@@ -54,7 +55,7 @@ export function toTimeInputValue(
 
 export function formatScheduleDisplay(
   iso: string,
-  timezone = "UTC",
+  timezone = DEFAULT_TIMEZONE,
 ): string {
   return formatInTimeZone(iso, timezone, "EEE, MMM d, yyyy · h:mm a")
 }
@@ -62,7 +63,7 @@ export function formatScheduleDisplay(
 export function mergeScheduleValue(
   nextDate: Date,
   timeValue: string,
-  timezone = "UTC",
+  timezone = DEFAULT_TIMEZONE,
 ): string {
   const datePart = formatInTimeZone(nextDate, timezone, "yyyy-MM-dd")
   const zonedDateTime = `${datePart}T${timeValue}:00`

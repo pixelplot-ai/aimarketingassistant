@@ -10,6 +10,7 @@ import { AppError } from "@/lib/errors/app-error"
 import {
   aiSettingsSchema,
   appSettingsSchema,
+  DEFAULT_TIMEZONE,
   type AiSettingsFormValues,
   type AppSettingsFormValues,
 } from "@/lib/validations/settings"
@@ -29,7 +30,7 @@ const DEFAULT_SETTINGS: Omit<
   TablesInsert<"settings">,
   "user_id" | "id" | "created_at" | "updated_at"
 > = {
-  timezone: "UTC",
+  timezone: DEFAULT_TIMEZONE,
   date_format: "MM/dd/yyyy",
   default_post_status: "draft",
   default_platform_ids: [],

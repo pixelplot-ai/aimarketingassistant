@@ -4,6 +4,10 @@ import {
   isMetaDevStubMode,
 } from "@/features/integrations/facebook/config"
 import {
+  getEnvFacebookPageAccessToken,
+  resolveInstagramFromPageToken,
+} from "@/features/integrations/facebook/env-token"
+import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
   graphRequest,
@@ -40,6 +44,44 @@ type MeAccountsResponse = {
   data: PageWithInstagram[]
 }
 
+async function queryPageInstagramAccount(
+  page: PageWithInstagram,
+  fallbackUserToken: string,
+): Promise<{ page: PageWithInstagram; igAccount: InstagramAccount } | null> {
+  if (page.instagram_business_account?.id) {
+    return { page, igAccount: page.instagram_business_account }
+  }
+
+  const pageToken = page.access_token ?? fallbackUserToken
+
+  try {
+    const details = await graphRequest<{
+      id: string
+      name: string
+      instagram_business_account?: InstagramAccount
+    }>(`/${page.id}`, {
+      accessToken: pageToken,
+      params: { fields: "id,name,instagram_business_account{id,username}" },
+    })
+
+    if (!details.instagram_business_account?.id) {
+      return null
+    }
+
+    return {
+      page: {
+        ...page,
+        name: details.name,
+        access_token: pageToken,
+        instagram_business_account: details.instagram_business_account,
+      },
+      igAccount: details.instagram_business_account,
+    }
+  } catch {
+    return null
+  }
+}
+
 async function resolveInstagramAccount(
   accessToken: string,
 ): Promise<{ page: PageWithInstagram; igAccount: InstagramAccount }> {
@@ -50,13 +92,38 @@ async function resolveInstagramAccount(
     },
   })
 
-  for (const page of response.data ?? []) {
-    if (page.instagram_business_account?.id) {
-      return { page, igAccount: page.instagram_business_account }
+  const pages = response.data ?? []
+
+  for (const page of pages) {
+    const resolved = await queryPageInstagramAccount(page, accessToken)
+    if (resolved) {
+      return resolved
     }
   }
 
-  throw new Error("No Instagram Business account linked to Facebook Pages")
+  const pageNames = pages.map((page) => page.name).join(", ") || "none"
+  throw new Error(
+    `No Instagram Business account linked to Facebook Pages (found: ${pageNames}). Link Instagram to your Page in Meta Business Suite.`,
+  )
+}
+
+export async function buildInstagramTokensFromEnv(): Promise<OAuthTokens> {
+  const accessToken = getEnvFacebookPageAccessToken()
+  const { page, igAccount } = await resolveInstagramFromPageToken(accessToken)
+
+  return {
+    accessToken,
+    refreshToken: null,
+    expiresAt: null,
+    scopes: INSTAGRAM_SCOPES,
+    externalAccountId: igAccount.id,
+    accountName: igAccount.username ?? page.name,
+    metadata: {
+      igUserId: igAccount.id,
+      pageId: page.id,
+      source: "env_page_token",
+    },
+  }
 }
 
 function buildDevStubTokens(): OAuthTokens {

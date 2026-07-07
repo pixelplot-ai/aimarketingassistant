@@ -20,6 +20,7 @@ import {
   toTimeInputValue,
   mergeScheduleValue,
 } from "@/features/calendar/lib/datetime"
+import { DEFAULT_TIMEZONE } from "@/lib/validations/settings"
 import { cn } from "@/lib/utils"
 
 interface ScheduleDateTimePickerProps {
@@ -34,7 +35,7 @@ interface ScheduleDateTimePickerProps {
 export function ScheduleDateTimePicker({
   value,
   onChange,
-  timezone = "UTC",
+  timezone = DEFAULT_TIMEZONE,
   id,
   disabled = false,
   className,

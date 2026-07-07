@@ -157,6 +157,7 @@ export const COMMON_EMOJIS = [
 ]
 
 export const TIMEZONES = [
+  "Europe/Bucharest",
   "UTC",
   "America/New_York",
   "America/Chicago",
@@ -165,7 +166,6 @@ export const TIMEZONES = [
   "Europe/London",
   "Europe/Paris",
   "Europe/Berlin",
-  "Europe/Bucharest",
   "Asia/Tokyo",
   "Asia/Shanghai",
   "Australia/Sydney",
