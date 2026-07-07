@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 import { isAdminEmail } from "@/lib/auth/admin"
-import { updateSession } from "@/services/supabase/middleware"
+import { updateSession } from "@/services/supabase/proxy"
 
 const AUTH_ROUTES = ["/login"]
 const PUBLIC_PREFIXES = [
@@ -29,7 +29,7 @@ function isProtectedRoute(pathname: string): boolean {
   return true
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request)
   const { pathname } = request.nextUrl
 
