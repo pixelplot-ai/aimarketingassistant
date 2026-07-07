@@ -420,3 +420,26 @@ export async function verifyOAuthState(
   cookieStore.delete(`${OAUTH_STATE_COOKIE}_${platformId}`)
   return Boolean(stored && stored === state)
 }
+
+export async function getLinkedInEnvDiagnostics(): Promise<{
+  appConfigured: boolean
+  redirectUri: string
+  scopes: readonly string[]
+  encryptionKeyConfigured: boolean
+  devStubMode: boolean
+}> {
+  const {
+    getLinkedInAppConfig,
+    getLinkedInOAuthRedirectUri,
+    isLinkedInDevStubMode,
+    LINKEDIN_SCOPES,
+  } = await import("@/features/integrations/linkedin/config")
+
+  return {
+    appConfigured: getLinkedInAppConfig() !== null,
+    redirectUri: getLinkedInOAuthRedirectUri(),
+    scopes: LINKEDIN_SCOPES,
+    encryptionKeyConfigured: Boolean(process.env.TOKEN_ENCRYPTION_KEY?.trim()),
+    devStubMode: isLinkedInDevStubMode(),
+  }
+}

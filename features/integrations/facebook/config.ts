@@ -37,22 +37,29 @@ export function isMetaDevStubMode(): boolean {
   return true
 }
 
+function normalizeHost(value: string | undefined): string {
+  return value?.trim().replace(/^https?:\/\//, "").replace(/\/$/, "") ?? ""
+}
+
+function isLocalAppUrl(url: string): boolean {
+  return !url || url.includes("localhost") || url.includes("127.0.0.1")
+}
+
 export function getAppBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ?? ""
-  const vercelHost = process.env.VERCEL_URL?.trim().replace(/^https?:\/\//, "")
-
-  if (vercelHost) {
-    const vercelBase = `https://${vercelHost}`
-    if (
-      !explicit ||
-      explicit.includes("localhost") ||
-      explicit.includes("127.0.0.1")
-    ) {
-      return vercelBase
-    }
+  if (explicit && !isLocalAppUrl(explicit)) {
     return explicit
   }
-
+  if (process.env.VERCEL_ENV === "production") {
+    const productionHost = normalizeHost(process.env.VERCEL_PROJECT_PRODUCTION_URL)
+    if (productionHost) {
+      return `https://${productionHost}`
+    }
+  }
+  const vercelHost = normalizeHost(process.env.VERCEL_URL)
+  if (vercelHost) {
+    return `https://${vercelHost}`
+  }
   return explicit || "http://localhost:3000"
 }
 

@@ -562,7 +562,7 @@ CREATE POLICY workspace_settings_select ON public.workspace_settings FOR SELECT 
 INSERT INTO public.platforms (id, display_name, icon_key, is_enabled, sort_order) VALUES
   ('facebook',  'Facebook',       'facebook',  true,  1),
   ('instagram', 'Instagram',      'instagram', true,  2),
-  ('linkedin',  'LinkedIn',       'linkedin',  false, 3),
+  ('linkedin',  'LinkedIn',       'linkedin',  true, 3),
   ('tiktok',    'TikTok',         'tiktok',    false, 4),
   ('wordpress', 'WordPress',      'wordpress', false, 5),
   ('x',         'X (Twitter)',    'x',         false, 6),

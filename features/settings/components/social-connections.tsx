@@ -152,7 +152,6 @@ export function SocialConnections({
           const status = getConnectionLabel(platform.connection)
           const connected = isConnected(platform.connection)
           const isLoading = loadingPlatform === platform.id
-          const isLinkedIn = platform.id === "linkedin"
           const usesEnvPageToken =
             (platform.id === "facebook" || platform.id === "instagram") &&
             facebookEnvTokenAvailable
@@ -211,7 +210,7 @@ export function SocialConnections({
               <CardFooter className="flex flex-wrap gap-2">
                 {usesEnvPageToken ? (
                   <Button
-                    disabled={isLoading || isLinkedIn}
+                    disabled={isLoading}
                     onClick={() =>
                       void handleConnectWithEnvToken(
                         platform.id as "facebook" | "instagram",
@@ -229,7 +228,7 @@ export function SocialConnections({
                   </Button>
                 ) : (
                   <Button
-                    disabled={isLoading || isLinkedIn}
+                    disabled={isLoading}
                     onClick={() => handleConnect(platform.id)}
                   >
                     {isLoading && !connected ? (
@@ -252,7 +251,7 @@ export function SocialConnections({
                 </Button>
                 <Button
                   variant="outline"
-                  disabled={isLoading || !connected || isLinkedIn}
+                  disabled={isLoading || !connected}
                   onClick={() => handleRefresh(platform.id)}
                 >
                   {isLoading ? (
