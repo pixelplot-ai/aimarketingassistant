@@ -13,6 +13,10 @@ import {
 } from "@/lib/validations/post"
 import { createClient } from "@/services/supabase/server"
 import {
+  bucketForMediaType,
+  copyStorageFile,
+} from "@/services/storage/upload"
+import {
   cancelPendingScheduledJobs,
   createScheduledJobs,
   publishPost,
@@ -800,8 +804,43 @@ export async function duplicatePost(
       await syncPostPlatforms(duplicate.id, platformIds)
     }
 
+    const { data: sourceMedia } = await supabase
+      .from("post_media")
+      .select("*")
+      .eq("post_id", postId)
+      .maybeSingle()
+
+    if (sourceMedia) {
+      const bucket = bucketForMediaType(sourceMedia.media_type)
+      const { storagePath } = await copyStorageFile(
+        userId,
+        bucket,
+        sourceMedia.storage_path,
+      )
+
+      const { error: mediaError } = await supabase.from("post_media").insert({
+        post_id: duplicate.id,
+        media_type: sourceMedia.media_type,
+        storage_path: storagePath,
+        mime_type: sourceMedia.mime_type,
+        file_size: sourceMedia.file_size,
+        width: sourceMedia.width,
+        height: sourceMedia.height,
+        metadata: sourceMedia.metadata,
+      })
+
+      if (mediaError) {
+        throw new AppError({
+          code: "INTERNAL",
+          message: mediaError.message,
+          userMessage: "Failed to duplicate post media.",
+        })
+      }
+    }
+
     revalidatePath("/")
     revalidatePath("/posts")
+    revalidatePath(`/posts/${duplicate.id}/edit`)
 
     return { success: true, data: { id: duplicate.id } }
   } catch (error) {

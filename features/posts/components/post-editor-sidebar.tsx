@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import {
   CheckCircle2,
   Circle,
@@ -229,19 +230,59 @@ export function PostEditorSidebar({
 export function PostEditorSectionIcon({
   icon: Icon,
   className,
+  style,
 }: {
   icon: typeof FileText
   className?: string
+  style?: CSSProperties
 }) {
   return (
     <span
       className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-lg border bg-muted/50",
+        "flex size-8 shrink-0 items-center justify-center rounded-lg border bg-muted/50 [&>svg]:size-4",
         className,
       )}
+      style={style}
     >
       <Icon className="size-4" />
     </span>
+  )
+}
+
+export function PostEditorSectionHeader({
+  icon,
+  title,
+  description,
+  iconClassName,
+  iconStyle,
+}: {
+  icon: typeof FileText
+  title: string
+  description?: string
+  iconClassName?: string
+  iconStyle?: CSSProperties
+}) {
+  return (
+    <div className="flex items-start gap-3.5">
+      <PostEditorSectionIcon
+        icon={icon}
+        className={cn(
+          "size-10 rounded-xl border-foreground/10 bg-background shadow-sm [&>svg]:size-[18px]",
+          iconClassName,
+        )}
+        style={iconStyle}
+      />
+      <div className="min-w-0 pt-0.5">
+        <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">
+          {title}
+        </h2>
+        {description ? (
+          <p className="mt-1 text-sm leading-snug text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
+      </div>
+    </div>
   )
 }
 

@@ -12,7 +12,6 @@ import {
   Share2,
   Smile,
   Type,
-  X,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -56,6 +55,7 @@ import { AiTextToolbar } from "@/features/posts/components/ai-text-toolbar"
 import { ScheduleDateTimePicker } from "@/features/calendar/components/schedule-datetime-picker"
 import { MediaSection } from "@/features/posts/components/media-section"
 import {
+  PostEditorSectionHeader,
   PostEditorSectionIcon,
   PostEditorSidebar,
 } from "@/features/posts/components/post-editor-sidebar"
@@ -89,6 +89,50 @@ import type { Enums, Tables } from "@/types/database"
 
 const CONTENT_MAX_LENGTH = 5000
 const USE_STRATEGY_STORAGE_KEY = "post-editor-use-marketing-strategy"
+
+const AI_CONTEXT_THEMES = {
+  strategy: {
+    card: {
+      background: "color-mix(in srgb, #8b5cf6 10%, var(--color-card))",
+      boxShadow:
+        "inset 2px 0 0 #8b5cf6, 0 0 0 1px color-mix(in srgb, #8b5cf6 24%, transparent)",
+    },
+    icon: {
+      background: "color-mix(in srgb, #8b5cf6 16%, transparent)",
+      borderColor: "color-mix(in srgb, #8b5cf6 35%, transparent)",
+      color: "#7c3aed",
+    },
+    badge: {
+      color: "#7c3aed",
+      background: "color-mix(in srgb, #8b5cf6 14%, transparent)",
+      borderColor: "color-mix(in srgb, #8b5cf6 28%, transparent)",
+    },
+  },
+  product: {
+    card: {
+      background: "color-mix(in srgb, #f59e0b 10%, var(--color-card))",
+      boxShadow:
+        "inset 2px 0 0 #f59e0b, 0 0 0 1px color-mix(in srgb, #f59e0b 24%, transparent)",
+    },
+    icon: {
+      background: "color-mix(in srgb, #f59e0b 16%, transparent)",
+      borderColor: "color-mix(in srgb, #f59e0b 35%, transparent)",
+      color: "#d97706",
+    },
+    badge: {
+      color: "#d97706",
+      background: "color-mix(in srgb, #f59e0b 14%, transparent)",
+      borderColor: "color-mix(in srgb, #f59e0b 28%, transparent)",
+    },
+  },
+} as const
+
+const AI_CONTEXT_CARD_CLASS =
+  "shadow-none ring-0 [--card-spacing:--spacing(2.5)] data-[size=sm]:[--card-spacing:--spacing(2.5)]"
+const AI_CONTEXT_ICON_CLASS = "size-6 rounded-md [&>svg]:size-3"
+const AI_CONTEXT_HEADER_CLASS = "gap-0 pb-0"
+const AI_CONTEXT_TITLE_CLASS = "text-sm leading-snug"
+const AI_CONTEXT_DESC_CLASS = "text-xs leading-snug"
 
 interface PostEditorProps {
   mode: "create" | "edit"
@@ -437,19 +481,34 @@ export function PostEditor({
         )}
       >
         <div className="min-w-0 space-y-6">
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
+          <div className="space-y-3">
+          <Card
+            size="sm"
+            className={AI_CONTEXT_CARD_CLASS}
+            style={AI_CONTEXT_THEMES.strategy.card}
+          >
+            <CardHeader className={AI_CONTEXT_HEADER_CLASS}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <PostEditorSectionIcon
                     icon={Megaphone}
-                    className="text-violet-600 dark:text-violet-400"
+                    className={AI_CONTEXT_ICON_CLASS}
+                    style={AI_CONTEXT_THEMES.strategy.icon}
                   />
-                  <div>
-                    <CardTitle>Marketing strategy</CardTitle>
-                    <CardDescription>
-                      Use your active campaign to guide AI caption generation
-                      step by step.
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <CardTitle className={AI_CONTEXT_TITLE_CLASS}>
+                        Marketing strategy
+                      </CardTitle>
+                      <span
+                        className="inline-flex rounded-full border px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide"
+                        style={AI_CONTEXT_THEMES.strategy.badge}
+                      >
+                        AI context
+                      </span>
+                    </div>
+                    <CardDescription className={AI_CONTEXT_DESC_CLASS}>
+                      Guides AI captions from your active campaign.
                     </CardDescription>
                   </div>
                 </div>
@@ -457,15 +516,16 @@ export function PostEditor({
                   checked={useMarketingStrategy}
                   onCheckedChange={handleStrategyToggle}
                   aria-label="Use marketing strategy"
+                  className="shrink-0 scale-90"
                 />
               </div>
             </CardHeader>
             {useMarketingStrategy ? (
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2 pt-2">
                 {!campaignContext ? (
-                  <Alert>
-                    <AlertTitle>No active campaign</AlertTitle>
-                    <AlertDescription>
+                  <Alert className="py-2">
+                    <AlertTitle className="text-sm">No active campaign</AlertTitle>
+                    <AlertDescription className="text-xs">
                       Set a campaign as active on the{" "}
                       <Link
                         href="/marketing-strategy"
@@ -477,9 +537,9 @@ export function PostEditor({
                     </AlertDescription>
                   </Alert>
                 ) : !currentStep ? (
-                  <Alert>
-                    <AlertTitle>Campaign complete</AlertTitle>
-                    <AlertDescription>
+                  <Alert className="py-2">
+                    <AlertTitle className="text-sm">Campaign complete</AlertTitle>
+                    <AlertDescription className="text-xs">
                       All steps in &ldquo;{campaignContext.name}&rdquo; are
                       completed.{" "}
                       <Link
@@ -492,47 +552,43 @@ export function PostEditor({
                   </Alert>
                 ) : (
                   <>
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                       <span className="font-medium">{campaignContext.name}</span>
                       <span className="text-muted-foreground">
                         {campaignContext.completedCount} /{" "}
                         {campaignContext.totalSteps} completed
                       </span>
                     </div>
-                    <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-2">
-                      <p className="font-medium">
+                    <div className="space-y-1 border-t border-foreground/10 pt-2">
+                      <p className="text-xs font-medium text-foreground/80">
                         Day {currentStep.day}: {currentStep.topic}
                       </p>
-                      <p>
-                        <span className="text-muted-foreground">Type: </span>
+                      <p className="text-[11px] text-muted-foreground">
+                        <span className="font-medium">Type: </span>
                         {STRATEGY_CONTENT_TYPE_LABELS[
                           currentStep.content_type as keyof typeof STRATEGY_CONTENT_TYPE_LABELS
                         ] ?? currentStep.content_type}
                       </p>
-                      <p>
-                        <span className="text-muted-foreground">
-                          Objective:{" "}
-                        </span>
+                      <p className="text-[11px] text-muted-foreground">
+                        <span className="font-medium">Objective: </span>
                         {currentStep.objective}
                       </p>
                       {currentStep.notes ? (
-                        <p>
-                          <span className="text-muted-foreground">Notes: </span>
+                        <p className="text-[11px] text-muted-foreground">
+                          <span className="font-medium">Notes: </span>
                           {currentStep.notes}
                         </p>
                       ) : null}
                       {currentStep.product_reference ? (
-                        <p>
-                          <span className="text-muted-foreground">
-                            Product:{" "}
-                          </span>
+                        <p className="text-[11px] text-muted-foreground">
+                          <span className="font-medium">Product: </span>
                           {currentStep.product_reference}
                         </p>
                       ) : null}
                     </div>
                     <Link
                       href={`/marketing-strategy/${campaignContext.id}`}
-                      className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                      className="text-xs font-medium text-primary underline-offset-4 hover:underline"
                     >
                       View full strategy
                     </Link>
@@ -543,103 +599,113 @@ export function PostEditor({
           </Card>
 
           {products.length > 0 && (
-            <Card className="shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-start gap-3">
+            <Card
+              size="sm"
+              className={AI_CONTEXT_CARD_CLASS}
+              style={AI_CONTEXT_THEMES.product.card}
+            >
+              <CardHeader className={AI_CONTEXT_HEADER_CLASS}>
+                <div className="flex min-w-0 items-center gap-2">
                   <PostEditorSectionIcon
                     icon={Package}
-                    className="text-amber-600 dark:text-amber-400"
+                    className={AI_CONTEXT_ICON_CLASS}
+                    style={AI_CONTEXT_THEMES.product.icon}
                   />
-                  <div>
-                    <CardTitle>Product context</CardTitle>
-                    <CardDescription>
-                      Optionally link a product or service. AI will incorporate
-                      its description in captions and use its image as a
-                      reference when generating visuals.
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <CardTitle className={AI_CONTEXT_TITLE_CLASS}>
+                        Product context
+                      </CardTitle>
+                      <span
+                        className="inline-flex rounded-full border px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide"
+                        style={AI_CONTEXT_THEMES.product.badge}
+                      >
+                        AI context
+                      </span>
+                    </div>
+                    <CardDescription className={AI_CONTEXT_DESC_CLASS}>
+                      Link a product for AI captions and visual reference.
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                {selectedProduct ? (
-                  <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Package className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate text-sm font-medium">
-                        {selectedProduct.name}
-                      </span>
-                      <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs text-muted-foreground capitalize">
-                        {selectedProduct.type}
-                      </span>
-                      {selectedProduct.image_storage_path && (
-                        <span className="shrink-0 text-xs text-emerald-600 dark:text-emerald-400">
-                          · image attached
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove product context"
-                      onClick={() => setSelectedProductId(null)}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </div>
-                ) : (
+              <CardContent className="space-y-2 pt-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="product-context" className="text-xs">
+                    Product or service
+                  </Label>
                   <Select
-                    value=""
+                    value={selectedProductId ?? "none"}
                     onValueChange={(value) => {
-                      if (value) {
-                        setSelectedProductId(value)
-                      }
+                      setSelectedProductId(value === "none" ? null : value)
                     }}
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a product or service…" />
+                    <SelectTrigger
+                      id="product-context"
+                      className="h-9 w-full text-sm"
+                    >
+                      <span className="flex min-w-0 flex-1 items-center gap-2 truncate text-left">
+                        {selectedProduct ? (
+                          <>
+                            <Package className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                            <span className="truncate">{selectedProduct.name}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground capitalize">
+                              ({selectedProduct.type})
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Select a product or service…
+                          </span>
+                        )}
+                      </span>
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">No product or service</SelectItem>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          <span className="flex items-center gap-2">
-                            <span>{product.name}</span>
-                            <span className="text-xs text-muted-foreground capitalize">
-                              ({product.type})
-                            </span>
-                          </span>
+                          {product.name} ({product.type})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                )}
+                </div>
+                {selectedProduct ? (
+                  <div className="space-y-1 text-[11px] text-muted-foreground">
+                    {selectedProduct.description ? (
+                      <p className="line-clamp-2">{selectedProduct.description}</p>
+                    ) : (
+                      <p>No description — add one in Products for richer AI captions.</p>
+                    )}
+                    {selectedProduct.image_storage_path ? (
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                        Reference image available for AI visuals
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           )}
+          </div>
 
           <Card className="shadow-sm">
-            <CardHeader>
-              <div className="flex items-start gap-3">
-                <PostEditorSectionIcon icon={Type} />
-                <div>
-                  <CardTitle>Content</CardTitle>
-                  <CardDescription>
-                    Internal title and the caption your audience will see.
-                  </CardDescription>
-                </div>
-              </div>
+            <CardHeader className="pb-4">
+              <PostEditorSectionHeader
+                icon={Type}
+                title="Content"
+                description="Write your post title and caption."
+              />
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input
                   id="title"
+                  className="h-9"
                   placeholder="e.g. Summer product launch announcement"
                   {...form.register("title")}
                 />
-                <p className="text-xs text-muted-foreground">
-                  For your reference only — not sent to social platforms.
-                </p>
                 {form.formState.errors.title ? (
                   <p className="text-sm text-destructive">
                     {form.formState.errors.title.message}
@@ -647,11 +713,26 @@ export function PostEditor({
                 ) : null}
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="content">Caption / post text</Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
+              <div className="space-y-3 border-t border-foreground/10 pt-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <Label htmlFor="content" className="text-sm font-semibold">
+                      Post text
+                    </Label>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      The message your audience will see when this post is
+                      published.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={cn(
+                        "text-xs tabular-nums",
+                        content.length > CONTENT_MAX_LENGTH * 0.9
+                          ? "font-medium text-amber-700 dark:text-amber-400"
+                          : "text-muted-foreground",
+                      )}
+                    >
                       {content.length}/{CONTENT_MAX_LENGTH}
                     </span>
                     <Popover>
@@ -687,7 +768,8 @@ export function PostEditor({
                 <Textarea
                   id="content"
                   rows={8}
-                  placeholder="Write your post caption here, or use AI tools below…"
+                  className="min-h-[180px] resize-y text-sm leading-relaxed"
+                  placeholder="Write your post caption here…"
                   {...form.register("content")}
                 />
                 {form.formState.errors.content ? (
@@ -696,35 +778,31 @@ export function PostEditor({
                   </p>
                 ) : null}
 
-                <AiTextToolbar
-                  content={content}
-                  platformIds={platformIds}
-                  postId={postId}
-                  brandProfileComplete={brandProfileComplete}
-                  onContentChange={(value) =>
-                    form.setValue("content", value, { shouldValidate: true })
-                  }
-                  productContext={productContextForAi}
-                  strategyStep={strategyStepForAi}
-                />
+                <div className="border-t border-foreground/10 pt-4">
+                  <AiTextToolbar
+                    content={content}
+                    platformIds={platformIds}
+                    postId={postId}
+                    brandProfileComplete={brandProfileComplete}
+                    onContentChange={(value) =>
+                      form.setValue("content", value, { shouldValidate: true })
+                    }
+                    productContext={productContextForAi}
+                    strategyStep={strategyStepForAi}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="shadow-sm">
-            <CardHeader>
-              <div className="flex items-start gap-3">
-                <PostEditorSectionIcon
-                  icon={ImageIcon}
-                  className="text-violet-600 dark:text-violet-400"
-                />
-                <div>
-                  <CardTitle>Media</CardTitle>
-                  <CardDescription>
-                    Optional image or video. AI images use your caption above.
-                  </CardDescription>
-                </div>
-              </div>
+            <CardHeader className="pb-4">
+              <PostEditorSectionHeader
+                icon={ImageIcon}
+                title="Media"
+                description="Optional image or video. AI images use your post text above."
+                iconClassName="text-violet-600 dark:text-violet-400"
+              />
             </CardHeader>
             <CardContent>
               <MediaSection
@@ -742,19 +820,13 @@ export function PostEditor({
           </Card>
 
           <Card className="shadow-sm">
-            <CardHeader>
-              <div className="flex items-start gap-3">
-                <PostEditorSectionIcon
-                  icon={Share2}
-                  className="text-primary"
-                />
-                <div>
-                  <CardTitle>Platforms</CardTitle>
-                  <CardDescription>
-                    Select where this post should be published.
-                  </CardDescription>
-                </div>
-              </div>
+            <CardHeader className="pb-4">
+              <PostEditorSectionHeader
+                icon={Share2}
+                title="Platforms"
+                description="Select where this post should be published."
+                iconClassName="text-primary"
+              />
             </CardHeader>
             <CardContent className="space-y-3">
               {platforms.length === 0 ? (
@@ -803,20 +875,13 @@ export function PostEditor({
           </Card>
 
           <Card className="shadow-sm">
-            <CardHeader>
-              <div className="flex items-start gap-3">
-                <PostEditorSectionIcon
-                  icon={CalendarClock}
-                  className="text-sky-600 dark:text-sky-400"
-                />
-                <div>
-                  <CardTitle>Schedule</CardTitle>
-                  <CardDescription>
-                    Pick a future date and time in the timezone below. That
-                    timezone controls when the post publishes.
-                  </CardDescription>
-                </div>
-              </div>
+            <CardHeader className="pb-4">
+              <PostEditorSectionHeader
+                icon={CalendarClock}
+                title="Schedule"
+                description="Pick a future date and time in the timezone below."
+                iconClassName="text-sky-600 dark:text-sky-400"
+              />
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">

@@ -124,6 +124,30 @@ export async function createAdminSignedUrl(
   return data.signedUrl
 }
 
+export async function copyStorageFile(
+  userId: string,
+  bucket: StorageBucket,
+  sourcePath: string,
+): Promise<{ storagePath: string }> {
+  const supabase = await createClient()
+  const baseName = sourcePath.split("/").pop() ?? "media"
+  const storagePath = `${userId}/${Date.now()}-copy-${sanitizeFileName(baseName)}`
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .copy(sourcePath, storagePath)
+
+  if (error) {
+    throw new AppError({
+      code: "INTERNAL",
+      message: error.message,
+      userMessage: "Failed to copy media file.",
+    })
+  }
+
+  return { storagePath }
+}
+
 export async function removeFromBucket(
   bucket: StorageBucket,
   storagePath: string,

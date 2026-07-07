@@ -74,24 +74,25 @@ export default async function EditPostPage({ params }: EditPostPageProps) {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={post.title}
-        description={`Edit content, media, platforms, and schedule. ${scheduleHint}`}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <PostStatusBadge status={post.status} />
-            <Button
-              nativeButton={false}
-              variant="outline"
-              size="sm"
-              render={<Link href="/posts" />}
-            >
-              <ArrowLeft className="size-4" />
-              All posts
-            </Button>
-          </div>
-        }
-      />
+      <div className="flex items-center gap-3">
+        <Button
+          nativeButton={false}
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          render={<Link href="/posts" />}
+        >
+          <ArrowLeft className="size-4" />
+          All posts
+        </Button>
+        <PageHeader
+          title={post.title}
+          description={`Edit content, media, platforms, and schedule. ${scheduleHint}`}
+          actions={<PostStatusBadge status={post.status} />}
+          className="min-w-0 flex-1 border-b-0 pb-0"
+        />
+      </div>
+      <div className="border-b" />
       <PostEditor
         mode="edit"
         postId={post.id}

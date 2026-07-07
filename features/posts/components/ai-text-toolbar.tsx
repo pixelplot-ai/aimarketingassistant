@@ -153,7 +153,7 @@ export function AiTextToolbar({
   return (
     <>
       {!brandProfileComplete ? (
-        <Alert className="mb-3">
+        <Alert className="mb-2 py-2">
           <Sparkles className="size-4" />
           <AlertTitle>Brand profile recommended</AlertTitle>
           <AlertDescription>
