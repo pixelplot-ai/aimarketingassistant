@@ -1,17 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
 import {
   Loader2Icon,
   PlusIcon,
   RefreshCwIcon,
   UploadIcon,
-  ExternalLinkIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -37,11 +34,10 @@ interface AvatarsManagerProps {
 const POLL_MS = 5000
 
 export function AvatarsManager({ userId }: AvatarsManagerProps) {
-  const searchParams = useSearchParams()
   const [avatars, setAvatars] = useState<AvatarRow[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [assets, setAssets] = useState<AvatarAssetRow[]>([])
-  const [name, setName] = useState("Avatar")
+  const [name, setName] = useState("brand_characters")
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
@@ -56,7 +52,7 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
       error?: string
     }
     if (!response.ok) {
-      throw new Error(data.error || "Could not load avatars")
+      throw new Error(data.error || "Could not load groups")
     }
     setAvatars(data.avatars ?? [])
     return data.avatars ?? []
@@ -90,24 +86,15 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
     void (async () => {
       try {
         const list = await loadAvatars()
-        const verifiedId = searchParams.get("verified")
-        const error = searchParams.get("error")
-        if (error) {
-          toast.error(`Verification issue: ${error}`)
-        }
-        if (verifiedId) {
-          setSelectedId(verifiedId)
-          toast.success("Avatar verified")
-        } else if (list[0]) {
-          setSelectedId(list[0].id)
-        }
+        const ready = list.find((a) => a.status === "verified" && a.ark_group_id)
+        setSelectedId(ready?.id ?? list[0]?.id ?? null)
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to load")
       } finally {
         setLoading(false)
       }
     })()
-  }, [loadAvatars, searchParams])
+  }, [loadAvatars])
 
   useEffect(() => {
     if (!selectedId) {
@@ -121,81 +108,44 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
 
   useEffect(() => {
     if (!selectedId) return
-    const hasPending =
-      selected?.status === "pending_verification" ||
-      assets.some((a) => a.status === "processing")
-    if (!hasPending) return
+    if (!assets.some((a) => a.status === "processing")) return
 
     const timer = window.setInterval(() => {
-      void loadAvatars().catch(() => undefined)
       void loadAssets(selectedId).catch(() => undefined)
     }, POLL_MS)
 
     return () => window.clearInterval(timer)
-  }, [selectedId, selected?.status, assets, loadAvatars, loadAssets])
+  }, [selectedId, assets, loadAssets])
 
-  async function startVerification() {
+  async function createGroup() {
     setBusy(true)
     try {
-      const response = await fetch("/api/avatars/verify/start", {
+      const response = await fetch("/api/avatars/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() || "Avatar" }),
+        body: JSON.stringify({ name: name.trim() || "brand_characters" }),
       })
       const data = (await response.json()) as {
         avatarId?: string
-        h5Link?: string
         error?: string
       }
-      if (!response.ok || !data.avatarId || !data.h5Link) {
-        throw new Error(data.error || "Could not start verification")
+      if (!response.ok || !data.avatarId) {
+        throw new Error(data.error || "Could not create asset group")
       }
 
       await loadAvatars()
       setSelectedId(data.avatarId)
-      openVerificationLink(data.h5Link)
+      toast.success("AIGC asset group created")
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Verification failed")
+      toast.error(err instanceof Error ? err.message : "Create failed")
     } finally {
       setBusy(false)
     }
   }
 
-  function openVerificationLink(link: string) {
-    const opened = window.open(link, "_blank", "noopener,noreferrer")
-    if (!opened) {
-      toast.error("Popup blocked — use Open verification / Copy link below")
-      return
-    }
-    toast.message("Complete verification in the new tab (preferably on phone)")
-  }
-
-  async function restartVerification() {
-    if (!selected) return
-    setBusy(true)
-    try {
-      const response = await fetch(`/api/avatars/${selected.id}/verify/restart`, {
-        method: "POST",
-      })
-      const data = (await response.json()) as {
-        h5Link?: string
-        error?: string
-      }
-      if (!response.ok || !data.h5Link) {
-        throw new Error(data.error || "Could not restart verification")
-      }
-      await loadAvatars()
-      openVerificationLink(data.h5Link)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Restart failed")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function uploadPortraits(fileList: FileList | null) {
-    if (!selected || selected.status !== "verified") {
-      toast.error("Verify the avatar before uploading portraits.")
+  async function uploadAssets(fileList: FileList | null) {
+    if (!selected || selected.status !== "verified" || !selected.ark_group_id) {
+      toast.error("Create an asset group first.")
       return
     }
     if (!fileList?.length) return
@@ -224,16 +174,16 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             storagePath: path,
-            name: file.name.slice(0, 64) || "Portrait",
+            name: file.name.replace(/\.[^.]+$/, "").slice(0, 64) || "asset",
           }),
         })
         const data = (await response.json()) as { error?: string }
         if (!response.ok) {
-          throw new Error(data.error || "ModelArk asset upload failed")
+          throw new Error(data.error || "CreateAsset failed")
         }
       }
       await loadAssets(selected.id)
-      toast.success("Portraits submitted to ModelArk")
+      toast.success("Uploaded — wait until status is Active")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed")
     } finally {
@@ -245,7 +195,7 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2Icon className="size-4 animate-spin" />
-        Loading avatars…
+        Loading asset library…
       </div>
     )
   }
@@ -254,38 +204,38 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
     <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[280px_1fr]">
       <Card>
         <CardHeader>
-          <CardTitle>Avatars</CardTitle>
+          <CardTitle>Asset groups</CardTitle>
           <CardDescription>
-            Verify a person once, then upload matching portraits.
+            AIGC library (as in the BytePlus PDF). No real-person verification.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="avatar-name">Name</Label>
+            <Label htmlFor="group-name">Group name</Label>
             <Input
-              id="avatar-name"
+              id="group-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={busy}
-              placeholder="e.g. Ana"
+              placeholder="e.g. brand_characters"
             />
             <Button
               type="button"
               disabled={busy}
-              onClick={() => void startVerification()}
+              onClick={() => void createGroup()}
             >
               {busy ? (
                 <Loader2Icon className="animate-spin" />
               ) : (
                 <PlusIcon />
               )}
-              New verified avatar
+              New AIGC group
             </Button>
           </div>
 
           <div className="flex flex-col gap-1">
             {avatars.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No avatars yet.</p>
+              <p className="text-sm text-muted-foreground">No groups yet.</p>
             ) : (
               avatars.map((avatar) => (
                 <button
@@ -300,8 +250,10 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
                   )}
                 >
                   <div className="font-medium">{avatar.name || "Untitled"}</div>
-                  <div className="text-xs capitalize text-muted-foreground">
-                    {avatar.status.replaceAll("_", " ")}
+                  <div className="text-xs text-muted-foreground">
+                    {avatar.status === "verified" && avatar.ark_group_id
+                      ? "Ready"
+                      : avatar.status.replaceAll("_", " ")}
                   </div>
                 </button>
               ))
@@ -333,91 +285,32 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
       <Card>
         <CardHeader>
           <CardTitle>
-            {selected ? selected.name || "Avatar" : "Select an avatar"}
+            {selected ? selected.name || "Group" : "Select a group"}
           </CardTitle>
           <CardDescription>
-            {selected?.status === "pending_verification"
-              ? "Finish the ModelArk H5 verification (open on phone if possible)."
-              : selected?.status === "verified"
-                ? "Upload portraits that match the verified face."
-                : "Create or select an avatar to manage portraits."}
+            Upload images into the group. When status is Active, pick them on
+            Generate as asset:// refs.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {!selected ? (
             <p className="text-sm text-muted-foreground">
-              Choose an avatar from the list or create a new one.
+              Create a group (e.g. brand_characters), then upload images.
             </p>
           ) : null}
 
-          {selected?.status === "pending_verification" ? (
-            <Alert>
-              <ExternalLinkIcon />
-              <AlertTitle>Waiting for verification</AlertTitle>
-              <AlertDescription className="flex flex-col gap-3">
-                <span>
-                  Open the ModelArk H5 link (best on phone), finish the face
-                  check, then come back — this page refreshes automatically.
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {selected.h5_link ? (
-                    <>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => openVerificationLink(selected.h5_link!)}
-                      >
-                        <ExternalLinkIcon />
-                        Open verification
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => {
-                          void navigator.clipboard.writeText(selected.h5_link!)
-                          toast.success("Link copied — paste it on your phone")
-                        }}
-                      >
-                        Copy link
-                      </Button>
-                    </>
-                  ) : null}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void restartVerification()}
-                  >
-                    {busy ? (
-                      <Loader2Icon className="animate-spin" />
-                    ) : (
-                      <RefreshCwIcon />
-                    )}
-                    Get new link
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
+          {selected && selected.status !== "verified" ? (
+            <p className="text-sm text-destructive">
+              {selected.error ||
+                "This group is not ready. Create a new AIGC group (old real-human groups won’t work for AI assets)."}
+            </p>
           ) : null}
 
-          {selected?.status === "failed" ? (
-            <Alert variant="destructive">
-              <AlertTitle>Verification failed</AlertTitle>
-              <AlertDescription>
-                {selected.error || "Try creating a new avatar."}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {selected?.status === "verified" ? (
+          {selected?.status === "verified" && selected.ark_group_id ? (
             <>
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm text-muted-foreground">
-                  Group: {selected.ark_group_id}
+                <p className="truncate text-sm text-muted-foreground">
+                  {selected.ark_group_id}
                 </p>
                 <Button
                   type="button"
@@ -426,7 +319,7 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
                   onClick={() => fileRef.current?.click()}
                 >
                   <UploadIcon />
-                  Upload portraits
+                  Upload images
                 </Button>
                 <input
                   ref={fileRef}
@@ -435,7 +328,7 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
                   multiple
                   className="hidden"
                   onChange={(e) => {
-                    void uploadPortraits(e.target.files)
+                    void uploadAssets(e.target.files)
                     e.target.value = ""
                   }}
                 />
@@ -443,7 +336,7 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
 
               {assets.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No portraits yet. Only Active images can be used on Generate.
+                  No assets yet. Only Active assets appear on Generate.
                 </p>
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">

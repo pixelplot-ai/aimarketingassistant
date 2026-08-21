@@ -2,8 +2,6 @@ import { NextResponse } from "next/server"
 
 import { isAdminEmail } from "@/lib/auth/admin"
 import type { AvatarRow } from "@/lib/avatars/types"
-import { getVisualValidateResult } from "@/services/byteplus/assets"
-import { createAdminClient } from "@/services/supabase/admin"
 import { createClient } from "@/services/supabase/server"
 
 export const runtime = "nodejs"
@@ -32,36 +30,7 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const avatars = (data ?? []) as AvatarRow[]
-    const admin = createAdminClient()
-
-    for (const avatar of avatars) {
-      if (
-        avatar.status === "pending_verification" &&
-        avatar.byted_token
-      ) {
-        try {
-          const groupId = await getVisualValidateResult(avatar.byted_token)
-          if (groupId) {
-            await admin
-              .from("avatars")
-              .update({
-                status: "verified",
-                ark_group_id: groupId,
-                error: null,
-              })
-              .eq("id", avatar.id)
-            avatar.status = "verified"
-            avatar.ark_group_id = groupId
-            avatar.error = null
-          }
-        } catch (err) {
-          console.error("[avatars] reconcile verify failed:", err)
-        }
-      }
-    }
-
-    return NextResponse.json({ avatars })
+    return NextResponse.json({ avatars: (data ?? []) as AvatarRow[] })
   } catch (err) {
     console.error("[avatars] list error:", err)
     const message = err instanceof Error ? err.message : "Internal error"

@@ -416,7 +416,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
               {activeAvatars.length > 0 ? (
                 <div className="flex flex-col gap-2 rounded-lg border p-3">
                   <p className="text-xs font-medium text-muted-foreground">
-                    Pick from verified avatars
+                    Pick from asset library (Active)
                   </p>
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
                     {activeAvatars.map((asset) => {

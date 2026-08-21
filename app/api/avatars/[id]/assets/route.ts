@@ -75,21 +75,25 @@ export async function GET(_request: Request, context: RouteContext) {
     const admin = createAdminClient()
 
     for (const asset of assets) {
-      if (asset.status === "processing" && asset.ark_asset_id) {
+      if (
+        (asset.status === "processing" || asset.status === "failed") &&
+        asset.ark_asset_id
+      ) {
         try {
           const state = await getAsset(asset.ark_asset_id)
           const next = mapArkAssetStatus(state.status)
-          if (next !== "processing") {
+          const nextError =
+            next === "failed" ? state.error ?? "Asset failed" : null
+          if (next !== asset.status || nextError !== asset.error) {
             await admin
               .from("avatar_assets")
               .update({
                 status: next,
-                error: next === "failed" ? state.error ?? "Asset failed" : null,
+                error: nextError,
               })
               .eq("id", asset.id)
             asset.status = next
-            asset.error =
-              next === "failed" ? state.error ?? "Asset failed" : null
+            asset.error = nextError
           }
         } catch (err) {
           console.error("[avatars] reconcile asset failed:", err)
@@ -156,7 +160,7 @@ export async function POST(request: Request, context: RouteContext) {
     const admin = createAdminClient()
     const { data: signed, error: signError } = await admin.storage
       .from("seedance-avatars")
-      .createSignedUrl(parsed.data.storagePath, 60 * 60)
+      .createSignedUrl(parsed.data.storagePath, 60 * 60 * 24)
 
     if (signError || !signed?.signedUrl) {
       return NextResponse.json(

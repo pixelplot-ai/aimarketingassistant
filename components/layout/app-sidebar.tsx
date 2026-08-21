@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 const NAV = [
   { href: "/", label: "Generate", icon: ClapperboardIcon },
-  { href: "/avatars", label: "Avatars", icon: UsersIcon },
+  { href: "/avatars", label: "Library", icon: UsersIcon },
 ] as const
 
 export function AppSidebar() {

@@ -126,6 +126,35 @@ export async function createVisualValidateSession(): Promise<VisualValidateSessi
   }
 }
 
+export async function createAigcAssetGroup(input: {
+  name: string
+  description?: string
+}): Promise<{ id: string }> {
+  const name = input.name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64)
+
+  if (!name) {
+    throw new Error("Group name is required.")
+  }
+
+  const result = await callArkAction<{ Id?: string }>("CreateAssetGroup", {
+    Name: name,
+    Description: input.description?.trim() || name,
+    GroupType: "AIGC",
+    ProjectName: getArkProjectName(),
+  })
+
+  const id = result.Id?.trim()
+  if (!id) {
+    throw new Error("ModelArk did not return an asset group id.")
+  }
+  return { id }
+}
+
 export async function getVisualValidateResult(
   bytedToken: string,
 ): Promise<string | null> {
@@ -179,15 +208,30 @@ export async function getAsset(assetId: string): Promise<GetAssetResult> {
     Status?: string
     ErrorMessage?: string
     Message?: string
+    Error?: {
+      Code?: string
+      Message?: string
+    } | null
   }>("GetAsset", {
     Id: assetId,
     ProjectName: getArkProjectName(),
   })
 
+  const errorCode = result.Error?.Code?.trim()
+  const errorMessage =
+    result.Error?.Message?.trim() ||
+    result.ErrorMessage?.trim() ||
+    result.Message?.trim() ||
+    null
+
   return {
     id: result.Id?.trim() || assetId,
     status: (result.Status?.trim() || "Processing") as ArkAssetStatus,
-    error: result.ErrorMessage?.trim() || result.Message?.trim() || null,
+    error: errorCode
+      ? errorMessage
+        ? `${errorCode}: ${errorMessage}`
+        : errorCode
+      : errorMessage,
   }
 }
 
