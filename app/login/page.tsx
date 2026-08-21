@@ -26,7 +26,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <CardHeader>
           <CardTitle>Sign in</CardTitle>
           <CardDescription>
-            Sign in with Google or your admin email to manage social content.
+            Sign in with Google or your admin email.
           </CardDescription>
         </CardHeader>
         <CardContent>

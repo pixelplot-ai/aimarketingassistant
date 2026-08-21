@@ -17,11 +17,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "AI Social Media Assistant",
-    template: "%s | AI Social Media Assistant",
+    default: "Pixelplot",
+    template: "%s | Pixelplot",
   },
-  description:
-    "Create, schedule, and manage social media content with AI assistance.",
+  description: "Sign in to continue.",
 }
 
 export default function RootLayout({

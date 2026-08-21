@@ -8,7 +8,7 @@ const PUBLIC_PREFIXES = [
   "/_next",
   "/favicon.ico",
   "/auth/callback",
-  "/api/cron/publish",
+  "/api/webhooks/byteplus",
 ]
 
 function isPublicAsset(pathname: string): boolean {
