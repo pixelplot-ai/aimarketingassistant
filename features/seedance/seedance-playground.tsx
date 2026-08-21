@@ -13,11 +13,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   AUDIO_ACCEPT,
-  CLIP_DURATIONS,
+  CLIP_DURATION_DEFAULT,
+  CLIP_DURATION_MAX,
+  CLIP_DURATION_MIN,
   CLIP_QUALITIES,
   IMAGE_ACCEPT,
   MAX_REFERENCE_IMAGES,
@@ -38,6 +41,16 @@ interface LocalImage {
   file: File
   previewUrl: string
   path?: string
+}
+
+interface ActiveAvatarAsset {
+  id: string
+  name: string
+  avatar_name: string
+  storage_path: string
+  ark_asset_id: string | null
+  asset_uri: string | null
+  previewUrl?: string
 }
 
 interface SeedancePlaygroundProps {
@@ -87,11 +100,14 @@ function OptionChips<T extends string | number>({
 export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
   const [prompt, setPrompt] = useState("")
   const [images, setImages] = useState<LocalImage[]>([])
+  const [selectedAvatarIds, setSelectedAvatarIds] = useState<string[]>([])
+  const [activeAvatars, setActiveAvatars] = useState<ActiveAvatarAsset[]>([])
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [audioPath, setAudioPath] = useState<string | null>(null)
   const [modelOptionId, setModelOptionId] =
-    useState<SeedanceModelOption>("seedance_2_0")
-  const [durationSeconds, setDurationSeconds] = useState<ClipDuration>(5)
+    useState<SeedanceModelOption>("seedance_2_5")
+  const [durationSeconds, setDurationSeconds] =
+    useState<ClipDuration>(CLIP_DURATION_DEFAULT)
   const [ratio, setRatio] = useState<SeedanceRatio>("9:16")
   const [quality, setQuality] = useState<ClipQuality>("standard")
   const [generateAudio, setGenerateAudio] = useState(true)
@@ -100,6 +116,8 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const audioInputRef = useRef<HTMLInputElement>(null)
 
+  const totalRefs = images.length + selectedAvatarIds.length
+
   const busyOrRunning = useMemo(() => {
     return (
       busy ||
@@ -107,6 +125,33 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
       job?.status === "processing"
     )
   }, [busy, job?.status])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/avatars/active-assets")
+        const data = (await response.json()) as {
+          assets?: ActiveAvatarAsset[]
+        }
+        if (!response.ok) return
+        const list = data.assets ?? []
+        const supabase = createClient()
+        const withPreviews: ActiveAvatarAsset[] = []
+        for (const asset of list) {
+          const { data: signed } = await supabase.storage
+            .from("seedance-avatars")
+            .createSignedUrl(asset.storage_path, 3600)
+          withPreviews.push({
+            ...asset,
+            previewUrl: signed?.signedUrl,
+          })
+        }
+        setActiveAvatars(withPreviews)
+      } catch {
+        // optional picker
+      }
+    })()
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -165,9 +210,9 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
 
   function addImages(fileList: FileList | null) {
     if (!fileList?.length) return
-    const remaining = MAX_REFERENCE_IMAGES - images.length
+    const remaining = MAX_REFERENCE_IMAGES - totalRefs
     if (remaining <= 0) {
-      toast.error(`You can upload at most ${MAX_REFERENCE_IMAGES} images.`)
+      toast.error(`You can use at most ${MAX_REFERENCE_IMAGES} reference images.`)
       return
     }
 
@@ -205,6 +250,19 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
     }
     setAudioFile(file)
     setAudioPath(null)
+  }
+
+  function toggleAvatar(assetId: string) {
+    setSelectedAvatarIds((prev) => {
+      if (prev.includes(assetId)) {
+        return prev.filter((id) => id !== assetId)
+      }
+      if (prev.length + images.length >= MAX_REFERENCE_IMAGES) {
+        toast.error(`You can use at most ${MAX_REFERENCE_IMAGES} reference images.`)
+        return prev
+      }
+      return [...prev, assetId]
+    })
   }
 
   async function uploadRefs(): Promise<{
@@ -264,6 +322,12 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
 
     try {
       const { imagePaths, audioPath: uploadedAudioPath } = await uploadRefs()
+      const assetUris = selectedAvatarIds
+        .map(
+          (id) =>
+            activeAvatars.find((asset) => asset.id === id)?.asset_uri ?? null,
+        )
+        .filter((uri): uri is string => Boolean(uri))
 
       const response = await fetch("/api/seedance/generate", {
         method: "POST",
@@ -271,6 +335,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
         body: JSON.stringify({
           prompt: prompt.trim(),
           imagePaths,
+          assetUris,
           audioPath: uploadedAudioPath,
           modelOptionId,
           durationSeconds,
@@ -323,13 +388,13 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <Label>
-                  Reference images ({images.length}/{MAX_REFERENCE_IMAGES})
+                  Reference images ({totalRefs}/{MAX_REFERENCE_IMAGES})
                 </Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={busyOrRunning || images.length >= MAX_REFERENCE_IMAGES}
+                  disabled={busyOrRunning || totalRefs >= MAX_REFERENCE_IMAGES}
                   onClick={() => imageInputRef.current?.click()}
                 >
                   <UploadIcon />
@@ -347,6 +412,53 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                   }}
                 />
               </div>
+
+              {activeAvatars.length > 0 ? (
+                <div className="flex flex-col gap-2 rounded-lg border p-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Pick from verified avatars
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                    {activeAvatars.map((asset) => {
+                      const selected = selectedAvatarIds.includes(asset.id)
+                      return (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          disabled={
+                            busyOrRunning ||
+                            (!selected && totalRefs >= MAX_REFERENCE_IMAGES)
+                          }
+                          onClick={() => toggleAvatar(asset.id)}
+                          className={cn(
+                            "relative overflow-hidden rounded-lg border text-left",
+                            selected
+                              ? "ring-2 ring-primary"
+                              : "opacity-90 hover:opacity-100",
+                          )}
+                        >
+                          {asset.previewUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={asset.previewUrl}
+                              alt={asset.name}
+                              className="aspect-square w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex aspect-square items-center justify-center bg-muted text-[10px]">
+                              Avatar
+                            </div>
+                          )}
+                          <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[10px] text-white">
+                            {asset.avatar_name}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
               {images.length > 0 ? (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
                   {images.map((image, index) => (
@@ -361,7 +473,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                         className="aspect-square w-full object-cover"
                       />
                       <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                        @Image{index + 1}
+                        @Image{selectedAvatarIds.length + index + 1}
                       </span>
                       <button
                         type="button"
@@ -377,7 +489,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Optional. Up to 9 JPEG/PNG/WebP files.
+                  Optional. Verified avatars and/or up to 9 JPEG/PNG/WebP files.
                 </p>
               )}
             </div>
@@ -458,14 +570,37 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 }
               }}
             />
-            <OptionChips
-              label="Duration"
-              options={CLIP_DURATIONS}
-              selected={durationSeconds}
-              optionLabel={(value) => `${value}s`}
-              disabled={busyOrRunning || Boolean(audioFile)}
-              onSelect={setDurationSeconds}
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="duration-seconds" className="text-xs text-muted-foreground font-normal">
+                Duration (seconds)
+              </Label>
+              <Input
+                id="duration-seconds"
+                type="number"
+                min={CLIP_DURATION_MIN}
+                max={CLIP_DURATION_MAX}
+                step={1}
+                value={durationSeconds}
+                disabled={busyOrRunning || Boolean(audioFile)}
+                onChange={(event) => {
+                  const next = Number(event.target.value)
+                  if (!Number.isFinite(next)) return
+                  setDurationSeconds(
+                    Math.min(
+                      CLIP_DURATION_MAX,
+                      Math.max(CLIP_DURATION_MIN, Math.round(next)),
+                    ),
+                  )
+                }}
+                className="w-28"
+              />
+              <p className="text-xs text-muted-foreground">
+                {CLIP_DURATION_MIN}–{CLIP_DURATION_MAX}s
+                {audioFile
+                  ? " · ignored when reference audio is attached"
+                  : null}
+              </p>
+            </div>
             <OptionChips
               label="Format"
               options={SEEDANCE_RATIOS}

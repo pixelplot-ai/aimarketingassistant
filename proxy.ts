@@ -9,6 +9,7 @@ const PUBLIC_PREFIXES = [
   "/favicon.ico",
   "/auth/callback",
   "/api/webhooks/byteplus",
+  "/api/webhooks/visual-validate",
 ]
 
 function isPublicAsset(pathname: string): boolean {

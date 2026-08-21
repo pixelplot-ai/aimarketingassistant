@@ -41,7 +41,7 @@ export interface SeedanceStartRequest {
   imageUrls: string[]
   audioUrl?: string | null
   model: string
-  durationSeconds: 5 | 10
+  durationSeconds: number
   ratio: string
   quality: SeedanceQuality
   generateAudio: boolean

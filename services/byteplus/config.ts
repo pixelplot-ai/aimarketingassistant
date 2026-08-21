@@ -41,8 +41,21 @@ export function getSeedanceFastModelId(): string {
   return normalizeArkModelId(model)
 }
 
-export function resolveSeedanceModelId(optionId: "seedance_2_0" | "seedance_2_0_fast"): string {
+export function getSeedance25ModelId(): string {
+  const model = process.env.SEEDANCE_2_5_MODEL_ID?.trim()
+  if (!model) {
+    throw new Error(
+      "SEEDANCE_2_5_MODEL_ID is not configured. Copy the Seedance 2.5 model or endpoint ID from the ModelArk console.",
+    )
+  }
+  return normalizeArkModelId(model)
+}
+
+export function resolveSeedanceModelId(
+  optionId: "seedance_2_5" | "seedance_2_0" | "seedance_2_0_fast",
+): string {
   if (optionId === "seedance_2_0_fast") return getSeedanceFastModelId()
+  if (optionId === "seedance_2_5") return getSeedance25ModelId()
   return getSeedanceModelId()
 }
 
@@ -64,4 +77,18 @@ export function getSeedanceWebhookUrl(): string {
     )
   }
   return `${base}/api/webhooks/byteplus`
+}
+
+export function getVisualValidateWebhookUrl(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "")
+  if (!base) {
+    throw new Error(
+      "NEXT_PUBLIC_APP_URL is not configured. Set it to your Vercel production origin.",
+    )
+  }
+  return `${base}/api/webhooks/visual-validate`
+}
+
+export function getArkProjectName(): string {
+  return process.env.BYTEPLUS_ARK_PROJECT_NAME?.trim() || "default"
 }

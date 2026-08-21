@@ -65,7 +65,9 @@ export async function POST(request: Request) {
     }
 
     const body = parsed.data
-    const imageUrls = await createSignedUrls(body.imagePaths, user.id)
+    const signedImageUrls = await createSignedUrls(body.imagePaths, user.id)
+    // Avatar assets first (verified faces), then ad-hoc uploads.
+    const imageUrls = [...body.assetUris, ...signedImageUrls]
     const audioUrls = body.audioPath
       ? await createSignedUrls([body.audioPath], user.id)
       : []
