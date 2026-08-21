@@ -1,16 +1,21 @@
 /**
  * ModelArk private asset library Action APIs (LivenessFace / real-human).
- * POST {baseUrl}?Action=…&Version=2024-01-01
+ * These use the OpenAPI gateway + IAM AK/SK signing — not the Seedance Bearer API key.
+ * POST https://ark.ap-southeast-1.byteplusapi.com/?Action=…&Version=2024-01-01
  */
 
 import {
   getArkProjectName,
-  getByteplusArkApiKey,
-  getByteplusArkBaseUrl,
+  getByteplusAccessKeyId,
+  getByteplusArkOpenApiHost,
+  getByteplusArkOpenApiRegion,
+  getByteplusSecretAccessKey,
   getVisualValidateWebhookUrl,
 } from "@/services/byteplus/config"
+import { signByteplusOpenApiRequest } from "@/services/byteplus/openapi-sign"
 
 const ACTION_VERSION = "2024-01-01"
+const SERVICE = "ark"
 
 interface ArkErrorBody {
   ResponseMetadata?: {
@@ -27,19 +32,25 @@ async function callArkAction<T>(
   action: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  const apiKey = getByteplusArkApiKey()
-  const baseUrl = getByteplusArkBaseUrl()
-  const url = `${baseUrl}?Action=${encodeURIComponent(action)}&Version=${encodeURIComponent(ACTION_VERSION)}`
+  const host = getByteplusArkOpenApiHost()
+  const signed = signByteplusOpenApiRequest({
+    accessKeyId: getByteplusAccessKeyId(),
+    secretAccessKey: getByteplusSecretAccessKey(),
+    region: getByteplusArkOpenApiRegion(),
+    service: SERVICE,
+    host,
+    method: "POST",
+    action,
+    version: ACTION_VERSION,
+    body,
+  })
 
   let response: Response
   try {
-    response = await fetch(url, {
+    response = await fetch(signed.url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+      headers: signed.headers,
+      body: signed.body,
     })
   } catch (err) {
     console.error(`[ark-asset] ${action} network error:`, err)
@@ -47,10 +58,17 @@ async function callArkAction<T>(
   }
 
   const rawText = await response.text()
+  if (!rawText.trim()) {
+    throw new Error(
+      `ModelArk ${action} returned an empty body (status ${response.status}). Check BYTEPLUS_ARK_OPENAPI_HOST / IAM credentials.`,
+    )
+  }
+
   let data: ArkErrorBody
   try {
     data = JSON.parse(rawText) as ArkErrorBody
   } catch {
+    console.error(`[ark-asset] ${action} non-JSON:`, rawText.slice(0, 300))
     throw new Error(
       `ModelArk ${action} returned non-JSON (status ${response.status}).`,
     )
@@ -67,8 +85,13 @@ async function callArkAction<T>(
       status: response.status,
       errorCode,
       errorMessage,
+      requestId: data.ResponseMetadata?.RequestId,
     })
     throw new Error(message)
+  }
+
+  if (data.Result == null) {
+    throw new Error(`ModelArk ${action} returned no Result.`)
   }
 
   return data.Result as T

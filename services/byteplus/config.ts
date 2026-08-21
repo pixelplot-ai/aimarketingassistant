@@ -92,3 +92,47 @@ export function getVisualValidateWebhookUrl(): string {
 export function getArkProjectName(): string {
   return process.env.BYTEPLUS_ARK_PROJECT_NAME?.trim() || "default"
 }
+
+/** OpenAPI gateway for Administration / private asset library Action APIs. */
+const DEFAULT_ARK_OPENAPI_HOST = "ark.ap-southeast-1.byteplusapi.com"
+const DEFAULT_ARK_OPENAPI_REGION = "ap-southeast-1"
+
+export function getByteplusArkOpenApiHost(): string {
+  const configured = process.env.BYTEPLUS_ARK_OPENAPI_HOST?.trim()
+  if (configured) return configured.replace(/^https?:\/\//, "").replace(/\/+$/, "")
+  return DEFAULT_ARK_OPENAPI_HOST
+}
+
+export function getByteplusArkOpenApiRegion(): string {
+  return (
+    process.env.BYTEPLUS_ARK_OPENAPI_REGION?.trim() || DEFAULT_ARK_OPENAPI_REGION
+  )
+}
+
+/**
+ * IAM Access Key for ModelArk Administration APIs (CreateVisualValidateSession, etc.).
+ * Not the same as BYTEPLUS_ARK_API_KEY (Bearer key for Seedance inference).
+ */
+export function getByteplusAccessKeyId(): string {
+  const key =
+    process.env.BYTEPLUS_ACCESS_KEY_ID?.trim() ||
+    process.env.BYTEPLUS_ACCESSKEY?.trim()
+  if (!key) {
+    throw new Error(
+      "BYTEPLUS_ACCESS_KEY_ID is not configured. Private asset / real-human APIs need IAM AK/SK (BytePlus Console → IAM → Key Management), not the ModelArk API key.",
+    )
+  }
+  return key
+}
+
+export function getByteplusSecretAccessKey(): string {
+  const key =
+    process.env.BYTEPLUS_SECRET_ACCESS_KEY?.trim() ||
+    process.env.BYTEPLUS_SECRETKEY?.trim()
+  if (!key) {
+    throw new Error(
+      "BYTEPLUS_SECRET_ACCESS_KEY is not configured. Private asset / real-human APIs need IAM AK/SK (BytePlus Console → IAM → Key Management).",
+    )
+  }
+  return key
+}
