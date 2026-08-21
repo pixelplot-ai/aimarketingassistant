@@ -42,6 +42,7 @@ export interface SeedanceStartRequest {
   audioUrl?: string | null
   model: string
   durationSeconds: number
+  smartDuration?: boolean
   ratio: string
   quality: SeedanceQuality
   generateAudio: boolean
@@ -100,9 +101,11 @@ function toSeedanceRatio(aspectRatio: string | undefined): string {
 
 function toSeedanceDuration(
   durationSeconds: number,
-  hasReferenceAudio: boolean,
+  options: { hasReferenceAudio: boolean; smartDuration: boolean },
 ): number {
-  return hasReferenceAudio ? -1 : durationSeconds
+  // -1 = smart mode: model picks length within the model’s allowed range.
+  if (options.hasReferenceAudio || options.smartDuration) return -1
+  return durationSeconds
 }
 
 function readTaskId(data: ByteplusVideoTaskResponse): string | null {
@@ -280,10 +283,10 @@ export async function startSeedanceTask(
     })
   }
 
-  const duration = toSeedanceDuration(
-    request.durationSeconds,
-    Boolean(referenceAudioUrl),
-  )
+  const duration = toSeedanceDuration(request.durationSeconds, {
+    hasReferenceAudio: Boolean(referenceAudioUrl),
+    smartDuration: Boolean(request.smartDuration),
+  })
 
   const body: Record<string, unknown> = {
     model,
@@ -300,6 +303,7 @@ export async function startSeedanceTask(
     model,
     quality: request.quality,
     durationSeconds: request.durationSeconds,
+    smartDuration: Boolean(request.smartDuration),
     seedanceDuration: duration,
     ratio: body.ratio,
     resolution: body.resolution,

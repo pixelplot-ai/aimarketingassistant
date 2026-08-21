@@ -205,9 +205,6 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
       <Card>
         <CardHeader>
           <CardTitle>Asset groups</CardTitle>
-          <CardDescription>
-            AIGC library (as in the BytePlus PDF). No real-person verification.
-          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">

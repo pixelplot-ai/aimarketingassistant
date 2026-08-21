@@ -13,6 +13,7 @@ export const seedanceGenerateBodySchema = z
       .enum(["seedance_2_5", "seedance_2_0", "seedance_2_0_fast"])
       .default("seedance_2_5"),
     durationSeconds: z.number().int().min(1).max(30).default(5),
+    smartDuration: z.boolean().default(false),
     ratio: z
       .enum(["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"])
       .default("9:16"),

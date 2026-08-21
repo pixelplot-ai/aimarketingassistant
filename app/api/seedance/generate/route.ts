@@ -99,6 +99,7 @@ export async function POST(request: Request) {
         audioUrl: audioUrls[0] ?? null,
         model: resolveSeedanceModelId(body.modelOptionId),
         durationSeconds: body.durationSeconds,
+        smartDuration: body.smartDuration,
         ratio: body.ratio,
         quality,
         generateAudio: body.generateAudio,

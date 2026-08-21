@@ -108,6 +108,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
     useState<SeedanceModelOption>("seedance_2_5")
   const [durationSeconds, setDurationSeconds] =
     useState<ClipDuration>(CLIP_DURATION_DEFAULT)
+  const [smartDuration, setSmartDuration] = useState(false)
   const [ratio, setRatio] = useState<SeedanceRatio>("9:16")
   const [quality, setQuality] = useState<ClipQuality>("standard")
   const [generateAudio, setGenerateAudio] = useState(true)
@@ -339,6 +340,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
           audioPath: uploadedAudioPath,
           modelOptionId,
           durationSeconds,
+          smartDuration,
           ratio,
           quality,
           generateAudio,
@@ -571,33 +573,53 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
               }}
             />
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="duration-seconds" className="text-xs text-muted-foreground font-normal">
+              <Label
+                htmlFor="duration-seconds"
+                className="text-xs font-normal text-muted-foreground"
+              >
                 Duration (seconds)
               </Label>
-              <Input
-                id="duration-seconds"
-                type="number"
-                min={CLIP_DURATION_MIN}
-                max={CLIP_DURATION_MAX}
-                step={1}
-                value={durationSeconds}
-                disabled={busyOrRunning || Boolean(audioFile)}
-                onChange={(event) => {
-                  const next = Number(event.target.value)
-                  if (!Number.isFinite(next)) return
-                  setDurationSeconds(
-                    Math.min(
-                      CLIP_DURATION_MAX,
-                      Math.max(CLIP_DURATION_MIN, Math.round(next)),
-                    ),
-                  )
-                }}
-                className="w-28"
-              />
+              <div className="flex items-center gap-3">
+                <Input
+                  id="duration-seconds"
+                  type="number"
+                  min={CLIP_DURATION_MIN}
+                  max={CLIP_DURATION_MAX}
+                  step={1}
+                  value={durationSeconds}
+                  disabled={
+                    busyOrRunning ||
+                    smartDuration ||
+                    Boolean(audioFile)
+                  }
+                  onChange={(event) => {
+                    const next = Number(event.target.value)
+                    if (!Number.isFinite(next)) return
+                    setDurationSeconds(
+                      Math.min(
+                        CLIP_DURATION_MAX,
+                        Math.max(CLIP_DURATION_MIN, Math.round(next)),
+                      ),
+                    )
+                  }}
+                  className="w-28"
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={smartDuration || Boolean(audioFile)}
+                    disabled={busyOrRunning || Boolean(audioFile)}
+                    onChange={(event) => setSmartDuration(event.target.checked)}
+                  />
+                  Smart
+                </label>
+              </div>
               <p className="text-xs text-muted-foreground">
-                {CLIP_DURATION_MIN}–{CLIP_DURATION_MAX}s
+                {smartDuration || audioFile
+                  ? "Model chooses length (−1)"
+                  : `${CLIP_DURATION_MIN}–${CLIP_DURATION_MAX}s`}
                 {audioFile
-                  ? " · ignored when reference audio is attached"
+                  ? " · forced when reference audio is attached"
                   : null}
               </p>
             </div>
