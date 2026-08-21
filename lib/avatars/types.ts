@@ -14,6 +14,7 @@ export interface AvatarRow {
   status: AvatarStatus
   ark_group_id: string | null
   byted_token: string | null
+  h5_link: string | null
   error: string | null
   created_at: string
   updated_at: string

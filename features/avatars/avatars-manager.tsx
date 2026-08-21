@@ -153,10 +153,41 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
 
       await loadAvatars()
       setSelectedId(data.avatarId)
-      window.open(data.h5Link, "_blank", "noopener,noreferrer")
-      toast.message("Complete verification in the new tab (preferably on phone)")
+      openVerificationLink(data.h5Link)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Verification failed")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function openVerificationLink(link: string) {
+    const opened = window.open(link, "_blank", "noopener,noreferrer")
+    if (!opened) {
+      toast.error("Popup blocked — use Open verification / Copy link below")
+      return
+    }
+    toast.message("Complete verification in the new tab (preferably on phone)")
+  }
+
+  async function restartVerification() {
+    if (!selected) return
+    setBusy(true)
+    try {
+      const response = await fetch(`/api/avatars/${selected.id}/verify/restart`, {
+        method: "POST",
+      })
+      const data = (await response.json()) as {
+        h5Link?: string
+        error?: string
+      }
+      if (!response.ok || !data.h5Link) {
+        throw new Error(data.error || "Could not restart verification")
+      }
+      await loadAvatars()
+      openVerificationLink(data.h5Link)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Restart failed")
     } finally {
       setBusy(false)
     }
@@ -323,9 +354,52 @@ export function AvatarsManager({ userId }: AvatarsManagerProps) {
             <Alert>
               <ExternalLinkIcon />
               <AlertTitle>Waiting for verification</AlertTitle>
-              <AlertDescription>
-                Complete the liveness check in the ModelArk tab. This page
-                refreshes automatically. Verification is once per person.
+              <AlertDescription className="flex flex-col gap-3">
+                <span>
+                  Open the ModelArk H5 link (best on phone), finish the face
+                  check, then come back — this page refreshes automatically.
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {selected.h5_link ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => openVerificationLink(selected.h5_link!)}
+                      >
+                        <ExternalLinkIcon />
+                        Open verification
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => {
+                          void navigator.clipboard.writeText(selected.h5_link!)
+                          toast.success("Link copied — paste it on your phone")
+                        }}
+                      >
+                        Copy link
+                      </Button>
+                    </>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void restartVerification()}
+                  >
+                    {busy ? (
+                      <Loader2Icon className="animate-spin" />
+                    ) : (
+                      <RefreshCwIcon />
+                    )}
+                    Get new link
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           ) : null}
