@@ -79,6 +79,34 @@ interface ByteplusVideoTaskResponse {
 
 const MAX_INLINE_AUDIO_BYTES = 2 * 1024 * 1024
 
+function detectAudioMime(buffer: Buffer, headerMime: string | null): string | null {
+  if (
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WAVE"
+  ) {
+    return "audio/wav"
+  }
+  if (
+    buffer.length >= 3 &&
+    (buffer.toString("ascii", 0, 3) === "ID3" ||
+      (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0))
+  ) {
+    return "audio/mpeg"
+  }
+  if (headerMime?.includes("wav") || headerMime === "audio/wave") {
+    return "audio/wav"
+  }
+  if (
+    headerMime === "audio/mpeg" ||
+    headerMime === "audio/mp3" ||
+    headerMime === "audio/mpeg3"
+  ) {
+    return "audio/mpeg"
+  }
+  return null
+}
+
 function isSeedanceLimitedResolution(model: string): boolean {
   return /-fast-|-mini-/i.test(model)
 }
@@ -181,7 +209,20 @@ function buildPrompt(input: {
   return parts.filter(Boolean).join("\n\n")
 }
 
+/**
+ * Prefer HTTPS signed URL. Base64 inlining often fails with
+ * "Invalid base64 audio_url" when mime/bytes are wrong.
+ */
 async function toSeedanceAudioUrl(url: string): Promise<string> {
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return url
+  }
+
+  const forceInline = process.env.SEEDANCE_INLINE_AUDIO === "1"
+  if (!forceInline) {
+    return url
+  }
+
   try {
     const response = await fetch(url, {
       signal: AbortSignal.timeout(8000),
@@ -191,8 +232,15 @@ async function toSeedanceAudioUrl(url: string): Promise<string> {
     if (!buffer.length || buffer.byteLength > MAX_INLINE_AUDIO_BYTES) {
       return url
     }
-    const mime = response.headers.get("content-type")?.split(";")[0]?.trim()
-    const seedanceMime = mime?.includes("wav") ? "audio/wav" : "audio/mpeg"
+    const headerMime =
+      response.headers.get("content-type")?.split(";")[0]?.trim() || null
+    const seedanceMime = detectAudioMime(buffer, headerMime)
+    if (!seedanceMime) {
+      console.warn(
+        "[seedance] reference audio is not wav/mp3; sending HTTPS URL instead",
+      )
+      return url
+    }
     return `data:${seedanceMime};base64,${buffer.toString("base64")}`
   } catch (err) {
     console.error("[seedance] could not inline reference audio:", err)
