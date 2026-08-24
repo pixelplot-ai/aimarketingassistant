@@ -21,6 +21,7 @@ const SEEDANCE_RATIOS = new Set([
   "4:3",
   "3:4",
   "21:9",
+  "adaptive",
 ])
 
 const RATIO_ALIASES: Record<string, string> = {
@@ -124,16 +125,27 @@ function toSeedanceResolution(
 
 function toSeedanceRatio(aspectRatio: string | undefined): string {
   const key = (aspectRatio || "9:16").trim()
+  if (key === "adaptive") return "adaptive"
   const mapped = RATIO_ALIASES[key] ?? key
   return SEEDANCE_RATIOS.has(mapped) ? mapped : "9:16"
 }
 
 function toSeedanceDuration(
   durationSeconds: number,
-  options: { hasReferenceAudio: boolean; smartDuration: boolean },
+  options: {
+    hasReferenceAudio: boolean
+    hasReferenceVideo: boolean
+    smartDuration: boolean
+  },
 ): number {
-  // -1 = smart mode: model picks length within the model’s allowed range.
-  if (options.hasReferenceAudio || options.smartDuration) return -1
+  // -1 = smart / follow input. Required for reference-video (edit) tasks.
+  if (
+    options.hasReferenceAudio ||
+    options.hasReferenceVideo ||
+    options.smartDuration
+  ) {
+    return -1
+  }
   return durationSeconds
 }
 
@@ -169,6 +181,9 @@ function toTaskStatus(raw: string | undefined): SeedanceTaskStatus {
 }
 
 function ratioPromptLine(ratio: string): string {
+  if (ratio === "adaptive") {
+    return "Match the output aspect ratio to the reference video / scene."
+  }
   if (ratio === "9:16" || ratio === "3:4") {
     return `The video MUST be ${ratio} vertical/portrait. Fill the entire ${ratio} frame. Do not generate a square 1:1 video even if @Image1 is square.`
   }
@@ -318,12 +333,18 @@ export async function startSeedanceTask(
     ? await toSeedanceAudioUrl(request.audioUrl.trim())
     : ""
 
+  const hasReferenceVideo = videoUrls.length > 0
+  // Video-edit / r2v tasks require adaptive ratio + smart duration.
+  const ratio = hasReferenceVideo
+    ? "adaptive"
+    : toSeedanceRatio(request.ratio)
+
   const content: Array<Record<string, unknown>> = [
     {
       type: "text",
       text: buildPrompt({
         prompt: request.prompt,
-        ratio: request.ratio,
+        ratio,
         imageCount: imageUrls.length,
         videoCount: videoUrls.length,
         hasAudio: Boolean(referenceAudioUrl),
@@ -357,13 +378,14 @@ export async function startSeedanceTask(
 
   const duration = toSeedanceDuration(request.durationSeconds, {
     hasReferenceAudio: Boolean(referenceAudioUrl),
+    hasReferenceVideo,
     smartDuration: Boolean(request.smartDuration),
   })
 
   const body: Record<string, unknown> = {
     model,
     content,
-    ratio: toSeedanceRatio(request.ratio),
+    ratio,
     resolution: toSeedanceResolution(request.quality, model),
     duration,
     generate_audio: request.generateAudio !== false,

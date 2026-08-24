@@ -636,7 +636,9 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Optional. Up to 3 MP4/MOV clips (combined ~2–15s recommended).
+                  Optional. Up to 3 MP4/MOV clips (≥~640×640, each ~4–30s for
+                  edit tasks). Format + duration become adaptive when video is
+                  attached.
                 </p>
               )}
             </div>
@@ -735,7 +737,8 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                   disabled={
                     busyOrRunning ||
                     smartDuration ||
-                    Boolean(audioFile)
+                    Boolean(audioFile) ||
+                    videos.length > 0
                   }
                   onChange={(event) => {
                     const next = Number(event.target.value)
@@ -752,19 +755,30 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={smartDuration || Boolean(audioFile)}
-                    disabled={busyOrRunning || Boolean(audioFile)}
+                    checked={
+                      smartDuration ||
+                      Boolean(audioFile) ||
+                      videos.length > 0
+                    }
+                    disabled={
+                      busyOrRunning ||
+                      Boolean(audioFile) ||
+                      videos.length > 0
+                    }
                     onChange={(event) => setSmartDuration(event.target.checked)}
                   />
                   Smart
                 </label>
               </div>
               <p className="text-xs text-muted-foreground">
-                {smartDuration || audioFile
+                {smartDuration || audioFile || videos.length > 0
                   ? "Model chooses length (−1)"
                   : `${CLIP_DURATION_MIN}–${CLIP_DURATION_MAX}s`}
                 {audioFile
                   ? " · forced when reference audio is attached"
+                  : null}
+                {videos.length > 0
+                  ? " · forced when reference video is attached"
                   : null}
               </p>
             </div>
@@ -773,9 +787,14 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
               options={SEEDANCE_RATIOS}
               selected={ratio}
               optionLabel={(value) => value}
-              disabled={busyOrRunning}
+              disabled={busyOrRunning || videos.length > 0}
               onSelect={setRatio}
             />
+            {videos.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                With reference video, Seedance uses format adaptive.
+              </p>
+            ) : null}
             <OptionChips
               label="Quality"
               options={CLIP_QUALITIES}
