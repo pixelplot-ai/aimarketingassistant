@@ -8,6 +8,7 @@ export const seedanceGenerateBodySchema = z
       .array(z.string().regex(/^asset:\/\/.+/))
       .max(9)
       .default([]),
+    videoPaths: z.array(z.string().min(1)).max(3).default([]),
     audioPath: z.string().min(1).nullable().optional(),
     modelOptionId: z
       .enum(["seedance_2_5", "seedance_2_0", "seedance_2_0_fast"])

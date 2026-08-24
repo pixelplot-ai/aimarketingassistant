@@ -39,6 +39,7 @@ export type SeedanceTaskStatus =
 export interface SeedanceStartRequest {
   prompt: string
   imageUrls: string[]
+  videoUrls?: string[]
   audioUrl?: string | null
   model: string
   durationSeconds: number
@@ -181,6 +182,7 @@ function buildPrompt(input: {
   prompt: string
   ratio: string
   imageCount: number
+  videoCount: number
   hasAudio: boolean
 }): string {
   const ratio = toSeedanceRatio(input.ratio)
@@ -193,6 +195,16 @@ function buildPrompt(input: {
     ).join(", ")
     parts.push(
       `Use ${tags} as identity / visual references. Match products, people, and branding from those images. They are not locked first frames — invent camera and motion around them.`,
+    )
+  }
+
+  if (input.videoCount > 0) {
+    const tags = Array.from(
+      { length: input.videoCount },
+      (_, i) => `@Video${i + 1}`,
+    ).join(", ")
+    parts.push(
+      `Use ${tags} as motion / scene references. Follow camera movement, pacing, and action from those clips where the prompt asks.`,
     )
   }
 
@@ -299,6 +311,9 @@ export async function startSeedanceTask(
     request.model.trim() || getSeedanceModelId(),
   )
   const imageUrls = request.imageUrls.map((url) => url.trim()).filter(Boolean)
+  const videoUrls = (request.videoUrls ?? [])
+    .map((url) => url.trim())
+    .filter(Boolean)
   const referenceAudioUrl = request.audioUrl?.trim()
     ? await toSeedanceAudioUrl(request.audioUrl.trim())
     : ""
@@ -310,6 +325,7 @@ export async function startSeedanceTask(
         prompt: request.prompt,
         ratio: request.ratio,
         imageCount: imageUrls.length,
+        videoCount: videoUrls.length,
         hasAudio: Boolean(referenceAudioUrl),
       }),
     },
@@ -320,6 +336,14 @@ export async function startSeedanceTask(
       type: "image_url",
       image_url: { url },
       role: "reference_image",
+    })
+  }
+
+  for (const url of videoUrls) {
+    content.push({
+      type: "video_url",
+      video_url: { url },
+      role: "reference_video",
     })
   }
 
@@ -358,6 +382,7 @@ export async function startSeedanceTask(
     generateAudio: request.generateAudio !== false,
     referenceAudio: Boolean(referenceAudioUrl),
     imageCount: imageUrls.length,
+    videoCount: videoUrls.length,
   })
 
   let response: Response

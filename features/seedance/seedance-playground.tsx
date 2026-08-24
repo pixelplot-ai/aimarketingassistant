@@ -24,9 +24,11 @@ import {
   CLIP_QUALITIES,
   IMAGE_ACCEPT,
   MAX_REFERENCE_IMAGES,
+  MAX_REFERENCE_VIDEOS,
   SEEDANCE_MODELS,
   SEEDANCE_RATIOS,
   SEEDANCE_REFS_BUCKET,
+  VIDEO_ACCEPT,
   type ClipDuration,
   type ClipQuality,
   type SeedanceModelOption,
@@ -37,6 +39,13 @@ import { createClient } from "@/services/supabase/client"
 import { cn } from "@/lib/utils"
 
 interface LocalImage {
+  id: string
+  file: File
+  previewUrl: string
+  path?: string
+}
+
+interface LocalVideo {
   id: string
   file: File
   previewUrl: string
@@ -100,6 +109,7 @@ function OptionChips<T extends string | number>({
 export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
   const [prompt, setPrompt] = useState("")
   const [images, setImages] = useState<LocalImage[]>([])
+  const [videos, setVideos] = useState<LocalVideo[]>([])
   const [selectedAvatarIds, setSelectedAvatarIds] = useState<string[]>([])
   const [activeAvatars, setActiveAvatars] = useState<ActiveAvatarAsset[]>([])
   const [audioFile, setAudioFile] = useState<File | null>(null)
@@ -115,6 +125,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
   const [busy, setBusy] = useState(false)
   const [job, setJob] = useState<SeedanceJobRow | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
   const audioInputRef = useRef<HTMLInputElement>(null)
 
   const totalRefs = images.length + selectedAvatarIds.length
@@ -242,6 +253,45 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
     })
   }
 
+  function addVideos(fileList: FileList | null) {
+    if (!fileList?.length) return
+    const remaining = MAX_REFERENCE_VIDEOS - videos.length
+    if (remaining <= 0) {
+      toast.error(`You can use at most ${MAX_REFERENCE_VIDEOS} reference videos.`)
+      return
+    }
+
+    const next = Array.from(fileList)
+      .filter(
+        (file) =>
+          file.type === "video/mp4" ||
+          file.type === "video/quicktime" ||
+          file.name.toLowerCase().endsWith(".mp4") ||
+          file.name.toLowerCase().endsWith(".mov"),
+      )
+      .slice(0, remaining)
+      .map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }))
+
+    if (next.length === 0) {
+      toast.error("Only MP4 or MOV videos are supported.")
+      return
+    }
+
+    setVideos((prev) => [...prev, ...next])
+  }
+
+  function removeVideo(id: string) {
+    setVideos((prev) => {
+      const target = prev.find((video) => video.id === id)
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((video) => video.id !== id)
+    })
+  }
+
   function onAudioSelected(fileList: FileList | null) {
     const file = fileList?.[0]
     if (!file) return
@@ -268,11 +318,13 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
 
   async function uploadRefs(): Promise<{
     imagePaths: string[]
+    videoPaths: string[]
     audioPath: string | null
   }> {
     const supabase = createClient()
     const stamp = Date.now()
     const imagePaths: string[] = []
+    const videoPaths: string[] = []
 
     for (let i = 0; i < images.length; i++) {
       const image = images[i]
@@ -289,6 +341,26 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
         throw new Error(error.message)
       }
       imagePaths.push(path)
+    }
+
+    for (let i = 0; i < videos.length; i++) {
+      const video = videos[i]
+      const ext = video.file.name.split(".").pop() || "mp4"
+      const path = `${userId}/${stamp}-video-${i + 1}.${ext}`
+      const contentType =
+        video.file.type ||
+        (ext.toLowerCase() === "mov" ? "video/quicktime" : "video/mp4")
+      const { error } = await supabase.storage
+        .from(SEEDANCE_REFS_BUCKET)
+        .upload(path, video.file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType,
+        })
+      if (error) {
+        throw new Error(error.message)
+      }
+      videoPaths.push(path)
     }
 
     let nextAudioPath: string | null = audioPath
@@ -309,7 +381,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
       setAudioPath(path)
     }
 
-    return { imagePaths, audioPath: nextAudioPath }
+    return { imagePaths, videoPaths, audioPath: nextAudioPath }
   }
 
   async function onGenerate() {
@@ -322,7 +394,11 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
     setJob(null)
 
     try {
-      const { imagePaths, audioPath: uploadedAudioPath } = await uploadRefs()
+      const {
+        imagePaths,
+        videoPaths,
+        audioPath: uploadedAudioPath,
+      } = await uploadRefs()
       const assetUris = selectedAvatarIds
         .map(
           (id) =>
@@ -337,6 +413,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
           prompt: prompt.trim(),
           imagePaths,
           assetUris,
+          videoPaths,
           audioPath: uploadedAudioPath,
           modelOptionId,
           durationSeconds,
@@ -374,8 +451,8 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
           <CardHeader>
             <CardTitle>Prompt</CardTitle>
             <CardDescription>
-              Describe the video. Reference images become @Image1…@Image9;
-              audio becomes @Audio1.
+              Describe the video. Images → @Image1…; videos → @Video1…;
+              audio → @Audio1.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -492,6 +569,74 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Optional. Verified avatars and/or up to 9 JPEG/PNG/WebP files.
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label>
+                  Reference videos ({videos.length}/{MAX_REFERENCE_VIDEOS})
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    busyOrRunning || videos.length >= MAX_REFERENCE_VIDEOS
+                  }
+                  onClick={() => videoInputRef.current?.click()}
+                >
+                  <UploadIcon />
+                  Add videos
+                </Button>
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept={VIDEO_ACCEPT}
+                  multiple
+                  className="hidden"
+                  onChange={(event) => {
+                    addVideos(event.target.files)
+                    event.target.value = ""
+                  }}
+                />
+              </div>
+              {videos.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {videos.map((video, index) => (
+                    <div
+                      key={video.id}
+                      className="relative overflow-hidden rounded-lg border bg-muted"
+                    >
+                      <video
+                        src={video.previewUrl}
+                        className="aspect-video w-full object-cover"
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                      <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                        @Video{index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white"
+                        onClick={() => removeVideo(video.id)}
+                        disabled={busyOrRunning}
+                        aria-label={`Remove video ${index + 1}`}
+                      >
+                        <XIcon className="size-3.5" />
+                      </button>
+                      <p className="truncate px-2 py-1 text-[11px] text-muted-foreground">
+                        {video.file.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Optional. Up to 3 MP4/MOV clips (combined ~2–15s recommended).
                 </p>
               )}
             </div>

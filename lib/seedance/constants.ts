@@ -26,5 +26,7 @@ export type ClipQuality = (typeof CLIP_QUALITIES)[number]
 export type SeedanceRatio = (typeof SEEDANCE_RATIOS)[number]
 
 export const MAX_REFERENCE_IMAGES = 9
+export const MAX_REFERENCE_VIDEOS = 3
 export const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp"
+export const VIDEO_ACCEPT = "video/mp4,video/quicktime"
 export const AUDIO_ACCEPT = "audio/wav,audio/mpeg,audio/mp3"

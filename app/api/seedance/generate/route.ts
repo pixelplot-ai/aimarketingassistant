@@ -66,8 +66,9 @@ export async function POST(request: Request) {
 
     const body = parsed.data
     const signedImageUrls = await createSignedUrls(body.imagePaths, user.id)
-    // Avatar assets first (verified faces), then ad-hoc uploads.
+    // Library assets first, then ad-hoc uploads.
     const imageUrls = [...body.assetUris, ...signedImageUrls]
+    const videoUrls = await createSignedUrls(body.videoPaths, user.id)
     const audioUrls = body.audioPath
       ? await createSignedUrls([body.audioPath], user.id)
       : []
@@ -96,6 +97,7 @@ export async function POST(request: Request) {
       const started = await startSeedanceTask({
         prompt: body.prompt,
         imageUrls,
+        videoUrls,
         audioUrl: audioUrls[0] ?? null,
         model: resolveSeedanceModelId(body.modelOptionId),
         durationSeconds: body.durationSeconds,
