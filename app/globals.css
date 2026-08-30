@@ -127,4 +127,11 @@
   html {
     @apply font-sans;
   }
+  /*
+   * Native <select> menus on Windows/macOS often render a light popup.
+   * Force light color-scheme so option text stays dark and readable.
+   */
+  select {
+    color-scheme: light;
+  }
 }

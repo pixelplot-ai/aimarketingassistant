@@ -1,8 +1,21 @@
-import { AvatarsManager } from "@/features/avatars/avatars-manager"
-import { requireAuth } from "@/lib/auth/require-auth"
+import { redirect } from "next/navigation"
 
-export default async function AvatarsPage() {
-  const user = await requireAuth()
+interface LegacyAvatarsPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
 
-  return <AvatarsManager userId={user.id} />
+export default async function LegacyAvatarsPage({
+  searchParams,
+}: LegacyAvatarsPageProps) {
+  const params = await searchParams
+  const query = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") {
+      query.set(key, value)
+    }
+  }
+
+  const suffix = query.toString()
+  redirect(suffix ? `/video/avatars?${suffix}` : "/video/avatars")
 }

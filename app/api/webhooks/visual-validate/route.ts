@@ -67,20 +67,20 @@ export async function GET(request: NextRequest) {
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") || "http://localhost:3000"
 
   if (!bytedToken) {
-    return NextResponse.redirect(`${appUrl}/avatars?error=missing_token`)
+    return NextResponse.redirect(`${appUrl}/video/avatars?error=missing_token`)
   }
 
   try {
     const result = await completeVerification(bytedToken)
     if (result.outcome === "verified" || result.outcome === "ignored_already_verified") {
       return NextResponse.redirect(
-        `${appUrl}/avatars?verified=${result.avatarId ?? ""}`,
+        `${appUrl}/video/avatars?verified=${result.avatarId ?? ""}`,
       )
     }
-    return NextResponse.redirect(`${appUrl}/avatars?error=${result.outcome}`)
+    return NextResponse.redirect(`${appUrl}/video/avatars?error=${result.outcome}`)
   } catch (error) {
     console.error("[avatars] visual-validate GET error:", error)
-    return NextResponse.redirect(`${appUrl}/avatars?error=verify_failed`)
+    return NextResponse.redirect(`${appUrl}/video/avatars?error=verify_failed`)
   }
 }
 
