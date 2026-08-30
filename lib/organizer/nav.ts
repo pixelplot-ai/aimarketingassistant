@@ -13,12 +13,12 @@ export type OrganizerNavItem = {
 }
 
 export const ORGANIZER_NAV: OrganizerNavItem[] = [
+  { href: "/organizer/goals", label: "Goals", icon: TargetIcon },
   {
     href: "/organizer/human-resource",
     label: "Human resource",
     icon: UsersIcon,
   },
-  { href: "/organizer/goals", label: "Goals", icon: TargetIcon },
   { href: "/organizer/tasks", label: "Task", icon: ListTodoIcon },
   { href: "/organizer/budgets", label: "Budgets", icon: WalletIcon },
 ]

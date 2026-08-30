@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 const MODULES = [
   {
-    href: "/organizer",
+    href: "/organizer/goals",
     title: "Organizer",
     description: "Plan and organize work. This module is coming next.",
     icon: FolderKanbanIcon,
