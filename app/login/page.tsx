@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Card,
   CardContent,
@@ -21,7 +22,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { error } = await searchParams
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+    <div className="relative flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="absolute right-6 top-6">
+        <ThemeToggle />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Sign in</CardTitle>

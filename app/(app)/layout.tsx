@@ -1,5 +1,6 @@
 import Link from "next/link"
 
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { signOut } from "@/features/auth/actions"
 import { requireAuth } from "@/lib/auth/require-auth"
@@ -18,6 +19,7 @@ export default async function AppLayout({
           Pixelplot
         </Link>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <p className="text-sm text-muted-foreground">{user.email}</p>
           <form action={signOut}>
             <Button type="submit" variant="outline" size="sm">
