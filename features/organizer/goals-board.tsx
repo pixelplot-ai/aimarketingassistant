@@ -128,7 +128,7 @@ export function GoalsBoard() {
       const response = await fetch("/api/organizer/goals/allocations", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draftAllocations),
+        body: JSON.stringify({ horizon, ...draftAllocations }),
       })
       const data = (await response.json()) as {
         allocations?: GoalAllocations
@@ -140,7 +140,9 @@ export function GoalsBoard() {
       const next = data.allocations ?? draftAllocations
       setAllocations(next)
       setDraftAllocations(next)
-      toast.success("Allocations saved")
+      toast.success(
+        `${GOAL_HORIZON_LABELS[horizon].split(" · ")[0]} allocations saved`,
+      )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed")
     } finally {
@@ -293,8 +295,8 @@ export function GoalsBoard() {
                   Category allocation
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Drag the bar dividers for quick splits, or use + / − for fine
-                  adjustments. Total stays at 100%.
+                  Saved separately for short, medium, and long term. Drag the
+                  bar dividers or use + / −. Total stays at 100%.
                 </p>
               </div>
               <div className="flex items-center gap-2">

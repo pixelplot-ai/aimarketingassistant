@@ -24,23 +24,25 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const body = parsed.data
+    const { horizon, ...percents } = parsed.data
+    const allocations = percents as GoalAllocations
 
     const rows = GOAL_CATEGORIES.map((category) => ({
+      horizon,
       category,
-      percent: body[category],
+      percent: allocations[category],
       updated_by: user.id,
     }))
 
     const { error } = await supabase
       .from("organizer_goal_allocations")
-      .upsert(rows, { onConflict: "category" })
+      .upsert(rows, { onConflict: "horizon,category" })
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ allocations: body as GoalAllocations })
+    return NextResponse.json({ allocations, horizon })
   } catch (err) {
     console.error("[organizer/goals/allocations] PUT error:", err)
     const message = err instanceof Error ? err.message : "Internal error"

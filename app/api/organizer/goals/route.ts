@@ -43,7 +43,10 @@ export async function GET(request: NextRequest) {
         .select("*")
         .eq("horizon", horizon)
         .order("created_at", { ascending: false }),
-      supabase.from("organizer_goal_allocations").select("category, percent"),
+      supabase
+        .from("organizer_goal_allocations")
+        .select("category, percent")
+        .eq("horizon", horizon),
     ])
 
     if (goalsResult.error) {

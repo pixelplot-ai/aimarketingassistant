@@ -184,14 +184,22 @@ export type PatchGoalBody = z.infer<typeof patchGoalBodySchema>
 
 export const allocationsBodySchema = z
   .object({
+    horizon: z.enum(GOAL_HORIZONS),
     sales: z.number().int().min(0).max(100),
     marketing: z.number().int().min(0).max(100),
     product: z.number().int().min(0).max(100),
     administrative: z.number().int().min(0).max(100),
   })
-  .refine((body) => allocationSum(body) === 100, {
-    message: "Allocations must sum to 100%",
-  })
+  .refine(
+    (body) =>
+      allocationSum({
+        sales: body.sales,
+        marketing: body.marketing,
+        product: body.product,
+        administrative: body.administrative,
+      }) === 100,
+    { message: "Allocations must sum to 100%" },
+  )
 
 export type AllocationsBody = z.infer<typeof allocationsBodySchema>
 
