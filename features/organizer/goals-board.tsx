@@ -34,6 +34,7 @@ import {
   type GoalHorizon,
   type OrganizerGoalRow,
 } from "@/lib/organizer/goals"
+import { ConfirmDeleteDialog } from "@/features/organizer/confirm-delete-dialog"
 import { cn } from "@/lib/utils"
 
 export function GoalsBoard() {
@@ -48,6 +49,9 @@ export function GoalsBoard() {
   const [saving, setSaving] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<OrganizerGoalRow | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<OrganizerGoalRow | null>(
+    null,
+  )
   const [allocationCollapsed, setAllocationCollapsed] = useState(false)
 
   useEffect(() => {
@@ -399,37 +403,7 @@ export function GoalsBoard() {
                 <GoalRow
                   goal={goal}
                   onEdit={() => setEditingGoal(goal)}
-                  onDelete={async () => {
-                    if (
-                      !window.confirm(
-                        `Delete “${goal.title}”? This cannot be undone.`,
-                      )
-                    ) {
-                      return
-                    }
-                    setSaving(true)
-                    try {
-                      const response = await fetch(
-                        `/api/organizer/goals/${goal.id}`,
-                        { method: "DELETE" },
-                      )
-                      const data = (await response.json()) as {
-                        error?: string
-                      }
-                      if (!response.ok) {
-                        throw new Error(data.error || "Could not delete goal")
-                      }
-                      setGoals((prev) => prev.filter((g) => g.id !== goal.id))
-                      if (editingGoal?.id === goal.id) setEditingGoal(null)
-                      toast.success("Goal deleted")
-                    } catch (err) {
-                      toast.error(
-                        err instanceof Error ? err.message : "Delete failed",
-                      )
-                    } finally {
-                      setSaving(false)
-                    }
-                  }}
+                  onDelete={() => setPendingDelete(goal)}
                   deleting={saving}
                 />
               </li>
@@ -516,6 +490,35 @@ export function GoalsBoard() {
               }
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "Update failed")
+            } finally {
+              setSaving(false)
+            }
+          }}
+        />
+      ) : null}
+
+      {pendingDelete ? (
+        <ConfirmDeleteDialog
+          title={`Delete “${pendingDelete.title}”?`}
+          saving={saving}
+          onCancel={() => !saving && setPendingDelete(null)}
+          onConfirm={async () => {
+            const goal = pendingDelete
+            setSaving(true)
+            try {
+              const response = await fetch(`/api/organizer/goals/${goal.id}`, {
+                method: "DELETE",
+              })
+              const data = (await response.json()) as { error?: string }
+              if (!response.ok) {
+                throw new Error(data.error || "Could not delete goal")
+              }
+              setGoals((prev) => prev.filter((g) => g.id !== goal.id))
+              if (editingGoal?.id === goal.id) setEditingGoal(null)
+              setPendingDelete(null)
+              toast.success("Goal deleted")
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Delete failed")
             } finally {
               setSaving(false)
             }

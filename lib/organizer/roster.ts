@@ -7,6 +7,24 @@ import {
 
 export type { SchedulePerson }
 
+export type RosterSeat =
+  | { kind: "person"; person: SchedulePerson }
+  | { kind: "placeholder"; laneIndex: number }
+
+/** Always four Human resource seats, including empty open seats. */
+export function buildRosterSeats(roster: SchedulePerson[]): RosterSeat[] {
+  return Array.from({ length: ROSTER_LIMIT }, (_, laneIndex) => {
+    const person = roster.find((p) => p.laneIndex === laneIndex)
+    if (person) return { kind: "person" as const, person }
+    return { kind: "placeholder" as const, laneIndex }
+  })
+}
+
+export function rosterSeatLabel(seat: RosterSeat): string {
+  if (seat.kind === "person") return seat.person.displayName
+  return `Open seat ${seat.laneIndex + 1}`
+}
+
 export async function getRoster(): Promise<SchedulePerson[]> {
   const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.listUsers({

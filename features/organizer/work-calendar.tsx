@@ -21,6 +21,7 @@ import {
   type SchedulePerson,
   type WorkSlotRow,
 } from "@/lib/organizer/schedule"
+import { buildRosterSeats } from "@/lib/organizer/roster"
 import { cn } from "@/lib/utils"
 
 const WINDOW_STEP_DAYS = 1
@@ -35,24 +36,12 @@ type DraftState = {
   mode: "set" | "clear"
 }
 
-type LaneSlot =
-  | { kind: "person"; person: SchedulePerson }
-  | { kind: "placeholder"; laneIndex: number }
-
 function dayKey(date: Date): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
 }
 
 function toHourIso(date: Date): string {
   return date.toISOString()
-}
-
-function buildLanes(roster: SchedulePerson[]): LaneSlot[] {
-  return Array.from({ length: ROSTER_LIMIT }, (_, laneIndex) => {
-    const person = roster.find((p) => p.laneIndex === laneIndex)
-    if (person) return { kind: "person" as const, person }
-    return { kind: "placeholder" as const, laneIndex }
-  })
 }
 
 function isToday(day: Date, now: Date): boolean {
@@ -118,7 +107,7 @@ export function WorkCalendar({ currentUserId }: WorkCalendarProps) {
     [roster, currentUserId],
   )
 
-  const lanes = useMemo(() => buildLanes(roster), [roster])
+  const lanes = useMemo(() => buildRosterSeats(roster), [roster])
   const hasLoadedRef = useRef(false)
   const currentHour = now.getHours()
 

@@ -39,11 +39,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { ConfirmDeleteDialog } from "@/features/organizer/confirm-delete-dialog"
 import { LANE_STYLES, type SchedulePerson } from "@/lib/organizer/schedule"
+import {
+  buildRosterSeats,
+  rosterSeatLabel,
+} from "@/lib/organizer/roster"
 import {
   PRIORITY_STYLES,
   TASK_CATEGORIES,
   TASK_CATEGORY_LABELS,
+  formatTaskDate,
   isDueDateExpired,
   priorityTone,
   selectClassName,
@@ -305,11 +311,21 @@ export function TasksBoard({ currentUserId }: TasksBoardProps) {
           >
             <option value="all">All</option>
             <option value="unassigned">Unassigned</option>
-            {roster.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.displayName}
-              </option>
-            ))}
+            {buildRosterSeats(roster).map((seat) =>
+              seat.kind === "person" ? (
+                <option key={seat.person.id} value={seat.person.id}>
+                  {rosterSeatLabel(seat)}
+                </option>
+              ) : (
+                <option
+                  key={`open-seat-${seat.laneIndex}`}
+                  value={`open-seat-${seat.laneIndex}`}
+                  disabled
+                >
+                  {rosterSeatLabel(seat)}
+                </option>
+              ),
+            )}
           </select>
         </div>
         <div className="space-y-1.5">
@@ -507,6 +523,29 @@ function personLabel(
   return roster.find((p) => p.id === userId)?.displayName ?? "Unknown"
 }
 
+function assigneeSeatOptions(roster: SchedulePerson[]) {
+  return (
+    <>
+      <option value="">Unassigned</option>
+      {buildRosterSeats(roster).map((seat) =>
+        seat.kind === "person" ? (
+          <option key={seat.person.id} value={seat.person.id}>
+            {rosterSeatLabel(seat)}
+          </option>
+        ) : (
+          <option
+            key={`open-seat-${seat.laneIndex}`}
+            value=""
+            disabled
+          >
+            {rosterSeatLabel(seat)}
+          </option>
+        ),
+      )}
+    </>
+  )
+}
+
 function ModalShell({
   title,
   description,
@@ -646,12 +685,7 @@ function CreateTaskModal({
               onChange={(e) => setAssigneeId(e.target.value)}
               className={selectClassName}
             >
-              <option value="">Unassigned</option>
-              {roster.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.displayName}
-                </option>
-              ))}
+              {assigneeSeatOptions(roster)}
             </select>
           </div>
           <div className="space-y-1.5">
@@ -714,6 +748,7 @@ function EditTaskModal({
   const [dueDate, setDueDate] = useState(task.due_date ?? "")
   const [notes, setNotes] = useState(task.notes)
   const [progress, setProgress] = useState(task.progress)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const minDueDate = todayDateKey()
 
   useEffect(() => {
@@ -727,7 +762,11 @@ function EditTaskModal({
   }, [task])
 
   return (
-    <ModalShell title="Edit task" onClose={onClose}>
+    <ModalShell
+      title="Edit task"
+      description={`Created ${formatTaskDate(task.created_at, true)}`}
+      onClose={onClose}
+    >
       <form
         className="space-y-3"
         onSubmit={(e) => {
@@ -798,12 +837,7 @@ function EditTaskModal({
               disabled={!onRoster || saving}
               className={selectClassName}
             >
-              <option value="">Unassigned</option>
-              {roster.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.displayName}
-                </option>
-              ))}
+              {assigneeSeatOptions(roster)}
             </select>
           </div>
         </div>
@@ -860,16 +894,7 @@ function EditTaskModal({
               variant="outline"
               disabled={saving}
               className="text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-              onClick={() => {
-                if (
-                  !window.confirm(
-                    `Delete “${task.title}”? This cannot be undone.`,
-                  )
-                ) {
-                  return
-                }
-                void onDelete()
-              }}
+              onClick={() => setConfirmDelete(true)}
             >
               <Trash2Icon />
               Delete
@@ -933,6 +958,14 @@ function EditTaskModal({
           </div>
         </div>
       </form>
+      {confirmDelete ? (
+        <ConfirmDeleteDialog
+          title={`Delete “${task.title}”?`}
+          saving={saving}
+          onCancel={() => !saving && setConfirmDelete(false)}
+          onConfirm={() => void onDelete()}
+        />
+      ) : null}
     </ModalShell>
   )
 }
@@ -1055,17 +1088,16 @@ function TaskRow({
             {priority.label}
           </span>
         ) : null}
+        <span className="shrink-0 text-xs text-muted-foreground">
+          Created {formatTaskDate(task.created_at)}
+        </span>
         {expired ? (
           <span className="shrink-0 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-red-700 dark:text-red-300">
             Expired
           </span>
         ) : task.due_date ? (
           <span className="shrink-0 text-xs text-muted-foreground">
-            Due{" "}
-            {new Date(`${task.due_date}T12:00:00`).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-            })}
+            Due {formatTaskDate(task.due_date)}
           </span>
         ) : null}
         <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground sm:ml-auto">

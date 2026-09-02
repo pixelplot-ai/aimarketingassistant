@@ -36,6 +36,18 @@ export type OrganizerTaskRow = {
   completed_at: string | null
 }
 
+export function formatTaskDate(value: string, includeYear = false): string {
+  const date = value.includes("T")
+    ? new Date(value)
+    : new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(includeYear ? { year: "numeric" as const } : {}),
+  })
+}
+
 /** Local calendar date as YYYY-MM-DD. */
 export function todayDateKey(now = new Date()): string {
   const y = now.getFullYear()
