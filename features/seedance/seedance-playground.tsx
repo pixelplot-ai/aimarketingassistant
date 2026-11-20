@@ -22,6 +22,9 @@ import {
   CLIP_DURATION_MAX,
   CLIP_DURATION_MIN,
   CLIP_QUALITIES,
+  GEMINI_OMNI_MAX_SECONDS,
+  GEMINI_OMNI_MIN_SECONDS,
+  GEMINI_OMNI_RATIOS,
   IMAGE_ACCEPT,
   MAX_REFERENCE_IMAGES,
   MAX_REFERENCE_VIDEOS,
@@ -128,6 +131,10 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
   const videoInputRef = useRef<HTMLInputElement>(null)
   const audioInputRef = useRef<HTMLInputElement>(null)
 
+  const isGemini = modelOptionId === "gemini_omni"
+  const imageLimit = isGemini ? 1 : MAX_REFERENCE_IMAGES
+  const durationMin = isGemini ? GEMINI_OMNI_MIN_SECONDS : CLIP_DURATION_MIN
+  const durationMax = isGemini ? GEMINI_OMNI_MAX_SECONDS : CLIP_DURATION_MAX
   const totalRefs = images.length + selectedAvatarIds.length
 
   const busyOrRunning = useMemo(() => {
@@ -222,9 +229,13 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
 
   function addImages(fileList: FileList | null) {
     if (!fileList?.length) return
-    const remaining = MAX_REFERENCE_IMAGES - totalRefs
+    const remaining = imageLimit - totalRefs
     if (remaining <= 0) {
-      toast.error(`You can use at most ${MAX_REFERENCE_IMAGES} reference images.`)
+      toast.error(
+        isGemini
+          ? "Gemini Omni uses one start frame."
+          : `You can use at most ${MAX_REFERENCE_IMAGES} reference images.`,
+      )
       return
     }
 
@@ -308,8 +319,12 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
       if (prev.includes(assetId)) {
         return prev.filter((id) => id !== assetId)
       }
-      if (prev.length + images.length >= MAX_REFERENCE_IMAGES) {
-        toast.error(`You can use at most ${MAX_REFERENCE_IMAGES} reference images.`)
+      if (prev.length + images.length >= imageLimit) {
+        toast.error(
+          isGemini
+            ? "Gemini Omni uses one start frame."
+            : `You can use at most ${MAX_REFERENCE_IMAGES} reference images.`,
+        )
         return prev
       }
       return [...prev, assetId]
@@ -343,28 +358,30 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
       imagePaths.push(path)
     }
 
-    for (let i = 0; i < videos.length; i++) {
-      const video = videos[i]
-      const ext = video.file.name.split(".").pop() || "mp4"
-      const path = `${userId}/${stamp}-video-${i + 1}.${ext}`
-      const contentType =
-        video.file.type ||
-        (ext.toLowerCase() === "mov" ? "video/quicktime" : "video/mp4")
-      const { error } = await supabase.storage
-        .from(SEEDANCE_REFS_BUCKET)
-        .upload(path, video.file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType,
-        })
-      if (error) {
-        throw new Error(error.message)
+    if (!isGemini) {
+      for (let i = 0; i < videos.length; i++) {
+        const video = videos[i]
+        const ext = video.file.name.split(".").pop() || "mp4"
+        const path = `${userId}/${stamp}-video-${i + 1}.${ext}`
+        const contentType =
+          video.file.type ||
+          (ext.toLowerCase() === "mov" ? "video/quicktime" : "video/mp4")
+        const { error } = await supabase.storage
+          .from(SEEDANCE_REFS_BUCKET)
+          .upload(path, video.file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType,
+          })
+        if (error) {
+          throw new Error(error.message)
+        }
+        videoPaths.push(path)
       }
-      videoPaths.push(path)
     }
 
-    let nextAudioPath: string | null = audioPath
-    if (audioFile && !audioPath) {
+    let nextAudioPath: string | null = isGemini ? null : audioPath
+    if (!isGemini && audioFile && !audioPath) {
       const ext = audioFile.name.split(".").pop() || "mp3"
       const path = `${userId}/${stamp}-audio.${ext}`
       const { error } = await supabase.storage
@@ -389,6 +406,10 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
       toast.error("Enter a prompt.")
       return
     }
+    if (isGemini && totalRefs !== 1) {
+      toast.error("Gemini Omni needs exactly one start-frame image.")
+      return
+    }
 
     setBusy(true)
     setJob(null)
@@ -399,12 +420,24 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
         videoPaths,
         audioPath: uploadedAudioPath,
       } = await uploadRefs()
-      const assetUris = selectedAvatarIds
-        .map(
-          (id) =>
-            activeAvatars.find((asset) => asset.id === id)?.asset_uri ?? null,
-        )
-        .filter((uri): uri is string => Boolean(uri))
+      const assetUris = isGemini
+        ? []
+        : selectedAvatarIds
+            .map(
+              (id) =>
+                activeAvatars.find((asset) => asset.id === id)?.asset_uri ??
+                null,
+            )
+            .filter((uri): uri is string => Boolean(uri))
+      const avatarImagePaths = isGemini
+        ? selectedAvatarIds
+            .map(
+              (id) =>
+                activeAvatars.find((asset) => asset.id === id)?.storage_path ??
+                null,
+            )
+            .filter((path): path is string => Boolean(path))
+        : []
 
       const response = await fetch("/api/seedance/generate", {
         method: "POST",
@@ -413,8 +446,9 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
           prompt: prompt.trim(),
           imagePaths,
           assetUris,
-          videoPaths,
-          audioPath: uploadedAudioPath,
+          avatarImagePaths,
+          videoPaths: isGemini ? [] : videoPaths,
+          audioPath: isGemini ? null : uploadedAudioPath,
           modelOptionId,
           durationSeconds,
           smartDuration,
@@ -451,8 +485,9 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
           <CardHeader>
             <CardTitle>Prompt</CardTitle>
             <CardDescription>
-              Describe the video. Images → @Image1…; videos → @Video1…;
-              audio → @Audio1.
+              {isGemini
+                ? "Describe the motion. The image is the locked first frame."
+                : "Describe the video. Images → @Image1…; videos → @Video1…; audio → @Audio1."}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -467,13 +502,14 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <Label>
-                  Reference images ({totalRefs}/{MAX_REFERENCE_IMAGES})
+                  {isGemini ? "Start frame" : "Reference images"} ({totalRefs}/
+                  {imageLimit})
                 </Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={busyOrRunning || totalRefs >= MAX_REFERENCE_IMAGES}
+                  disabled={busyOrRunning || totalRefs >= imageLimit}
                   onClick={() => imageInputRef.current?.click()}
                 >
                   <UploadIcon />
@@ -506,7 +542,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                           type="button"
                           disabled={
                             busyOrRunning ||
-                            (!selected && totalRefs >= MAX_REFERENCE_IMAGES)
+                            (!selected && totalRefs >= imageLimit)
                           }
                           onClick={() => toggleAvatar(asset.id)}
                           className={cn(
@@ -568,11 +604,14 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Optional. Verified avatars and/or up to 9 JPEG/PNG/WebP files.
+                  {isGemini
+                    ? "Required. One JPEG, PNG, or WebP, or one library avatar. That image is the first frame."
+                    : "Optional. Verified avatars and/or up to 9 JPEG/PNG/WebP files."}
                 </p>
               )}
             </div>
 
+            {isGemini ? null : (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <Label>
@@ -642,7 +681,9 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 </p>
               )}
             </div>
+            )}
 
+            {isGemini ? null : (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <Label>Reference audio</Label>
@@ -696,6 +737,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 </p>
               )}
             </div>
+            )}
           </CardContent>
         </Card>
 
@@ -717,8 +759,27 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 if (id === "seedance_2_0_fast") {
                   setQuality("standard")
                 }
+                if (id === "gemini_omni") {
+                  setSmartDuration(false)
+                  setDurationSeconds((current) =>
+                    Math.min(
+                      GEMINI_OMNI_MAX_SECONDS,
+                      Math.max(GEMINI_OMNI_MIN_SECONDS, current),
+                    ),
+                  )
+                  setRatio((current) =>
+                    current === "9:16" || current === "16:9" ? current : "9:16",
+                  )
+                }
               }}
             />
+            {isGemini ? (
+              <p className="text-xs text-muted-foreground">
+                Google Gemini Omni 1.2. One start frame, 9:16 or 16:9, 3–15s,
+                720p. The clip comes back on the Gemini webhook, with polling
+                if that call is missed.
+              </p>
+            ) : null}
             <div className="flex flex-col gap-1.5">
               <Label
                 htmlFor="duration-seconds"
@@ -730,28 +791,25 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 <Input
                   id="duration-seconds"
                   type="number"
-                  min={CLIP_DURATION_MIN}
-                  max={CLIP_DURATION_MAX}
+                  min={durationMin}
+                  max={durationMax}
                   step={1}
                   value={durationSeconds}
                   disabled={
                     busyOrRunning ||
-                    smartDuration ||
-                    Boolean(audioFile) ||
-                    videos.length > 0
+                    (!isGemini &&
+                      (smartDuration || Boolean(audioFile) || videos.length > 0))
                   }
                   onChange={(event) => {
                     const next = Number(event.target.value)
                     if (!Number.isFinite(next)) return
                     setDurationSeconds(
-                      Math.min(
-                        CLIP_DURATION_MAX,
-                        Math.max(CLIP_DURATION_MIN, Math.round(next)),
-                      ),
+                      Math.min(durationMax, Math.max(durationMin, Math.round(next))),
                     )
                   }}
                   className="w-28"
                 />
+                {isGemini ? null : (
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -769,32 +827,40 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                   />
                   Smart
                 </label>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
-                {smartDuration || audioFile || videos.length > 0
-                  ? "Model chooses length (−1)"
-                  : `${CLIP_DURATION_MIN}–${CLIP_DURATION_MAX}s`}
-                {audioFile
+                {isGemini
+                  ? `${GEMINI_OMNI_MIN_SECONDS}–${GEMINI_OMNI_MAX_SECONDS}s at 720p`
+                  : smartDuration || audioFile || videos.length > 0
+                    ? "Model chooses length (−1)"
+                    : `${CLIP_DURATION_MIN}–${CLIP_DURATION_MAX}s`}
+                {!isGemini && audioFile
                   ? " · forced when reference audio is attached"
                   : null}
-                {videos.length > 0
+                {!isGemini && videos.length > 0
                   ? " · forced when reference video is attached"
                   : null}
               </p>
             </div>
             <OptionChips
               label="Format"
-              options={SEEDANCE_RATIOS}
+              options={isGemini ? GEMINI_OMNI_RATIOS : SEEDANCE_RATIOS}
               selected={ratio}
               optionLabel={(value) => value}
-              disabled={busyOrRunning || videos.length > 0}
+              disabled={busyOrRunning || (!isGemini && videos.length > 0)}
               onSelect={setRatio}
             />
-            {videos.length > 0 ? (
+            {!isGemini && videos.length > 0 ? (
               <p className="text-xs text-muted-foreground">
                 With reference video, Seedance uses format adaptive.
               </p>
             ) : null}
+            {isGemini ? (
+              <p className="text-xs text-muted-foreground">
+                Resolution is fixed at 720p. 1080p is not requested.
+              </p>
+            ) : (
             <OptionChips
               label="Quality"
               options={CLIP_QUALITIES}
@@ -805,6 +871,8 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
               disabled={busyOrRunning || modelOptionId === "seedance_2_0_fast"}
               onSelect={setQuality}
             />
+            )}
+            {isGemini ? null : (
             <div className="flex flex-col gap-1.5">
               <span className="text-xs text-muted-foreground">Native audio</span>
               <div className="flex flex-wrap gap-2">
@@ -830,6 +898,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                 </Button>
               </div>
             </div>
+            )}
 
             <Button
               type="button"
@@ -877,8 +946,9 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
                   <Loader2Icon className="animate-spin" />
                   <AlertTitle>Rendering</AlertTitle>
                   <AlertDescription>
-                    ModelArk is generating the clip. You can leave this page —
-                    the job is saved.
+                    {job.provider === "gemini"
+                      ? "Gemini Omni is generating the clip. You can leave this page — the job is saved."
+                      : "ModelArk is generating the clip. You can leave this page — the job is saved."}
                   </AlertDescription>
                 </Alert>
               ) : null}

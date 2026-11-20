@@ -9,6 +9,7 @@ const PUBLIC_PREFIXES = [
   "/favicon.ico",
   "/auth/callback",
   "/api/webhooks/byteplus",
+  "/api/webhooks/gemini",
   "/api/webhooks/visual-validate",
 ]
 

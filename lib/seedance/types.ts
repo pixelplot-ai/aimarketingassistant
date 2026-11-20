@@ -10,8 +10,14 @@ export const seedanceGenerateBodySchema = z
       .default([]),
     videoPaths: z.array(z.string().min(1)).max(3).default([]),
     audioPath: z.string().min(1).nullable().optional(),
+    avatarImagePaths: z.array(z.string().min(1)).max(1).default([]),
     modelOptionId: z
-      .enum(["seedance_2_5", "seedance_2_0", "seedance_2_0_fast"])
+      .enum([
+        "seedance_2_5",
+        "seedance_2_0",
+        "seedance_2_0_fast",
+        "gemini_omni",
+      ])
       .default("seedance_2_5"),
     durationSeconds: z.number().int().min(1).max(30).default(5),
     smartDuration: z.boolean().default(false),
@@ -24,6 +30,18 @@ export const seedanceGenerateBodySchema = z
   .refine(
     (data) => data.imagePaths.length + data.assetUris.length <= 9,
     { message: "At most 9 reference images (uploads + avatars)." },
+  )
+  .refine(
+    (data) =>
+      data.modelOptionId !== "gemini_omni" ||
+      (data.durationSeconds >= 3 &&
+        data.durationSeconds <= 15 &&
+        (data.ratio === "9:16" || data.ratio === "16:9") &&
+        data.imagePaths.length + data.avatarImagePaths.length === 1),
+    {
+      message:
+        "Gemini Omni needs one start-frame image, 9:16 or 16:9, and 3–15 seconds.",
+    },
   )
 
 export type SeedanceGenerateBody = z.infer<typeof seedanceGenerateBodySchema>
@@ -40,10 +58,12 @@ export type SeedanceJobStatus = z.infer<typeof seedanceJobStatusSchema>
 export interface SeedanceJobRow {
   id: string
   user_id: string
+  provider: "byteplus" | "gemini"
   provider_task_id: string | null
   status: SeedanceJobStatus
   prompt: string
   output_url: string | null
+  output_path: string | null
   error: string | null
   created_at: string
   updated_at: string

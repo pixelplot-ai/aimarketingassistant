@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server"
 
 import { isAdminEmail } from "@/lib/auth/admin"
+import { SEEDANCE_AVATARS_BUCKET } from "@/lib/avatars/types"
 import { seedanceGenerateBodySchema } from "@/lib/seedance/types"
 import { SEEDANCE_REFS_BUCKET } from "@/lib/seedance/constants"
 import { resolveSeedanceModelId } from "@/services/byteplus/config"
 import { startSeedanceTask } from "@/services/byteplus/seedance"
+import { startGeminiOmniTask } from "@/services/gemini/omni"
 import { createAdminClient } from "@/services/supabase/admin"
 import { createClient } from "@/services/supabase/server"
 
@@ -14,6 +16,7 @@ export const maxDuration = 60
 async function createSignedUrls(
   paths: string[],
   userId: string,
+  bucket: string,
 ): Promise<string[]> {
   if (paths.length === 0) return []
 
@@ -28,7 +31,7 @@ async function createSignedUrls(
 
   for (const path of paths) {
     const { data, error } = await admin.storage
-      .from(SEEDANCE_REFS_BUCKET)
+      .from(bucket)
       .createSignedUrl(path, 60 * 60)
 
     if (error || !data?.signedUrl) {
@@ -65,18 +68,36 @@ export async function POST(request: Request) {
     }
 
     const body = parsed.data
-    const signedImageUrls = await createSignedUrls(body.imagePaths, user.id)
-    // Library assets first, then ad-hoc uploads.
-    const imageUrls = [...body.assetUris, ...signedImageUrls]
-    const videoUrls = await createSignedUrls(body.videoPaths, user.id)
-    const audioUrls = body.audioPath
-      ? await createSignedUrls([body.audioPath], user.id)
+    const isGemini = body.modelOptionId === "gemini_omni"
+    const signedImageUrls = await createSignedUrls(
+      body.imagePaths,
+      user.id,
+      SEEDANCE_REFS_BUCKET,
+    )
+    const signedAvatarUrls = isGemini
+      ? await createSignedUrls(
+          body.avatarImagePaths,
+          user.id,
+          SEEDANCE_AVATARS_BUCKET,
+        )
       : []
+    // Library assets first, then ad-hoc uploads. Gemini uses one start frame.
+    const imageUrls = isGemini
+      ? [...signedAvatarUrls, ...signedImageUrls]
+      : [...body.assetUris, ...signedImageUrls]
+    const videoUrls = isGemini
+      ? []
+      : await createSignedUrls(body.videoPaths, user.id, SEEDANCE_REFS_BUCKET)
+    const audioUrls =
+      body.audioPath && !isGemini
+        ? await createSignedUrls([body.audioPath], user.id, SEEDANCE_REFS_BUCKET)
+        : []
 
     const { data: job, error: insertError } = await supabase
       .from("seedance_jobs")
       .insert({
         user_id: user.id,
+        provider: isGemini ? "gemini" : "byteplus",
         status: "queued",
         prompt: body.prompt,
       })
@@ -91,21 +112,32 @@ export async function POST(request: Request) {
     }
 
     try {
-      const quality =
-        body.modelOptionId === "seedance_2_0_fast" ? "standard" : body.quality
-
-      const started = await startSeedanceTask({
-        prompt: body.prompt,
-        imageUrls,
-        videoUrls,
-        audioUrl: audioUrls[0] ?? null,
-        model: resolveSeedanceModelId(body.modelOptionId),
-        durationSeconds: body.durationSeconds,
-        smartDuration: body.smartDuration,
-        ratio: body.ratio,
-        quality,
-        generateAudio: body.generateAudio,
-      })
+      const started = isGemini
+        ? await startGeminiOmniTask({
+            prompt: body.prompt,
+            imageUrl: imageUrls[0] ?? "",
+            aspectRatio: body.ratio === "16:9" ? "16:9" : "9:16",
+            durationSeconds: body.durationSeconds,
+          })
+        : await startSeedanceTask({
+            prompt: body.prompt,
+            imageUrls,
+            videoUrls,
+            audioUrl: audioUrls[0] ?? null,
+            model: resolveSeedanceModelId(
+              body.modelOptionId === "gemini_omni"
+                ? "seedance_2_5"
+                : body.modelOptionId,
+            ),
+            durationSeconds: body.durationSeconds,
+            smartDuration: body.smartDuration,
+            ratio: body.ratio,
+            quality:
+              body.modelOptionId === "seedance_2_0_fast"
+                ? "standard"
+                : body.quality,
+            generateAudio: body.generateAudio,
+          })
 
       const admin = createAdminClient()
       const { error: updateError } = await admin
@@ -126,7 +158,7 @@ export async function POST(request: Request) {
       })
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to start Seedance task"
+        err instanceof Error ? err.message : "Failed to start generation"
       const admin = createAdminClient()
       await admin
         .from("seedance_jobs")

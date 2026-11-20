@@ -18,7 +18,12 @@ export const SEEDANCE_MODELS = [
   { id: "seedance_2_5", label: "Seedance 2.5" },
   { id: "seedance_2_0", label: "Seedance 2.0" },
   { id: "seedance_2_0_fast", label: "Seedance 2.0 Fast" },
+  { id: "gemini_omni", label: "Gemini Omni 1.2" },
 ] as const
+
+export const GEMINI_OMNI_MIN_SECONDS = 3
+export const GEMINI_OMNI_MAX_SECONDS = 15
+export const GEMINI_OMNI_RATIOS = ["9:16", "16:9"] as const
 
 export type SeedanceModelOption = (typeof SEEDANCE_MODELS)[number]["id"]
 export type ClipDuration = number

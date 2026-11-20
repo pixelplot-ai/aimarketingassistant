@@ -1,16 +1,29 @@
 import { NextResponse } from "next/server"
 
 import { isAdminEmail } from "@/lib/auth/admin"
+import { SEEDANCE_REFS_BUCKET } from "@/lib/seedance/constants"
 import type { SeedanceJobRow } from "@/lib/seedance/types"
 import { getSeedanceTask } from "@/services/byteplus/seedance"
+import { applyGeminiOutcome } from "@/services/gemini/completeJob"
+import { getGeminiOmniTask } from "@/services/gemini/omni"
 import { createAdminClient } from "@/services/supabase/admin"
 import { createClient } from "@/services/supabase/server"
 
 export const runtime = "nodejs"
-export const maxDuration = 30
+export const maxDuration = 120
 
 type RouteContext = {
   params: Promise<{ id: string }>
+}
+
+async function withPlayableUrl(row: SeedanceJobRow): Promise<SeedanceJobRow> {
+  if (!row.output_path) return row
+  const admin = createAdminClient()
+  const { data, error } = await admin.storage
+    .from(SEEDANCE_REFS_BUCKET)
+    .createSignedUrl(row.output_path, 60 * 60)
+  if (error || !data?.signedUrl) return row
+  return { ...row, output_url: data.signedUrl }
 }
 
 function mapProviderStatusToJob(
@@ -56,6 +69,34 @@ export async function GET(_request: Request, context: RouteContext) {
     const row = job as SeedanceJobRow
 
     if (
+      row.provider === "gemini" &&
+      row.provider_task_id &&
+      (row.status === "queued" || row.status === "processing")
+    ) {
+      try {
+        const state = await getGeminiOmniTask(row.provider_task_id)
+        await applyGeminiOutcome({
+          jobId: row.id,
+          userId: row.user_id,
+          state,
+        })
+        const { data: updated } = await createAdminClient()
+          .from("seedance_jobs")
+          .select("*")
+          .eq("id", row.id)
+          .single()
+        if (updated) {
+          return NextResponse.json({
+            job: await withPlayableUrl(updated as SeedanceJobRow),
+          })
+        }
+      } catch (err) {
+        console.error("[gemini] reconcile failed:", err)
+      }
+    }
+
+    if (
+      row.provider !== "gemini" &&
       row.provider_task_id &&
       (row.status === "queued" || row.status === "processing")
     ) {
@@ -98,7 +139,7 @@ export async function GET(_request: Request, context: RouteContext) {
       }
     }
 
-    return NextResponse.json({ job: row })
+    return NextResponse.json({ job: await withPlayableUrl(row) })
   } catch (err) {
     console.error("[seedance] job status error:", err)
     const message = err instanceof Error ? err.message : "Internal error"
