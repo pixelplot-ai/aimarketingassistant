@@ -1,5 +1,6 @@
 import Link from "next/link"
 
+import { MobileNavMenu } from "@/components/layout/mobile-nav-menu"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { signOut } from "@/features/auth/actions"
@@ -14,7 +15,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background pb-[env(safe-area-inset-bottom)]">
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:px-6">
+      <header className="relative z-30 flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:px-6">
         <Link href="/" className="text-sm font-medium">
           Pixelplot
         </Link>
@@ -23,6 +24,7 @@ export default async function AppLayout({
           <p className="hidden max-w-[12rem] truncate text-sm text-muted-foreground sm:block lg:max-w-xs">
             {user.email}
           </p>
+          <MobileNavMenu />
           <form action={signOut}>
             <Button type="submit" variant="outline" size="sm">
               Sign out
