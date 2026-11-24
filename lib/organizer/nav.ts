@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react"
 import {
+  ContactRoundIcon,
   ListTodoIcon,
   TargetIcon,
   UsersIcon,
@@ -14,6 +15,7 @@ export type OrganizerNavItem = {
 
 export const ORGANIZER_NAV: OrganizerNavItem[] = [
   { href: "/organizer/goals", label: "Goals", icon: TargetIcon },
+  { href: "/organizer/leads", label: "Leads", icon: ContactRoundIcon },
   {
     href: "/organizer/human-resource",
     label: "Human resource",
