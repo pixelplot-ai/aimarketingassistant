@@ -246,7 +246,7 @@ export function TasksBoard({ currentUserId }: TasksBoardProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
@@ -284,14 +284,14 @@ export function TasksBoard({ currentUserId }: TasksBoardProps) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
+      <div className="grid gap-3 rounded-xl border bg-card p-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="filter-category">Category</Label>
           <select
             id="filter-category"
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className={cn(selectClassName, "min-w-36")}
+            className={selectClassName}
           >
             <option value="all">All</option>
             {TASK_CATEGORIES.map((c) => (
@@ -307,7 +307,7 @@ export function TasksBoard({ currentUserId }: TasksBoardProps) {
             id="filter-assignee"
             value={filterAssignee}
             onChange={(e) => setFilterAssignee(e.target.value)}
-            className={cn(selectClassName, "min-w-40")}
+            className={selectClassName}
           >
             <option value="all">All</option>
             <option value="unassigned">Unassigned</option>
@@ -334,7 +334,7 @@ export function TasksBoard({ currentUserId }: TasksBoardProps) {
             id="sort-key"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as TaskSortKey)}
-            className={cn(selectClassName, "min-w-36")}
+            className={selectClassName}
           >
             <option value="priority">Priority</option>
             <option value="title">Title</option>
@@ -568,7 +568,7 @@ function ModalShell({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative z-10 w-full max-w-md rounded-xl border bg-background p-5 shadow-lg"
+        className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-xl border bg-background p-5 shadow-lg"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>

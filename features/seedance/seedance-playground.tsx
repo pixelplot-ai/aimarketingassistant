@@ -500,7 +500,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
             />
 
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <Label>
                   {isGemini ? "Start frame" : "Reference images"} ({totalRefs}/
                   {imageLimit})
@@ -613,7 +613,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
 
             {isGemini ? null : (
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <Label>
                   Reference videos ({videos.length}/{MAX_REFERENCE_VIDEOS})
                 </Label>
@@ -685,7 +685,7 @@ export function SeedancePlayground({ userId }: SeedancePlaygroundProps) {
 
             {isGemini ? null : (
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <Label>Reference audio</Label>
                 <div className="flex gap-2">
                   {audioFile || audioPath ? (

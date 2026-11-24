@@ -15,7 +15,42 @@ export function AppSidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="flex w-52 shrink-0 flex-col border-r bg-muted/30">
+    <>
+      <nav
+        aria-label="Video"
+        className="flex w-full min-w-0 shrink-0 gap-1 overflow-x-auto overscroll-x-contain border-b bg-muted/30 px-2 py-1.5 md:hidden"
+      >
+        <Link
+          href="/"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground"
+        >
+          <LayoutGridIcon className="size-4" />
+          Modules
+        </Link>
+        {NAV.map((item) => {
+          const active = item.exact
+            ? pathname === item.href
+            : pathname.startsWith(item.href)
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm",
+                active
+                  ? "bg-background font-medium text-foreground shadow-sm"
+                  : "text-muted-foreground",
+              )}
+            >
+              <Icon className="size-4" />
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
+    <aside className="hidden w-52 shrink-0 flex-col border-r bg-muted/30 md:flex">
       <div className="border-b px-4 py-4">
         <p className="text-sm font-semibold tracking-tight">Video testing</p>
         <p className="text-xs text-muted-foreground">Seedance</p>
@@ -51,5 +86,6 @@ export function AppSidebar() {
         })}
       </nav>
     </aside>
+    </>
   )
 }

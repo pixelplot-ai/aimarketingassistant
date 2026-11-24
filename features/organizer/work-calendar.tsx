@@ -348,7 +348,7 @@ export function WorkCalendar({ currentUserId }: WorkCalendarProps) {
   const laneCount = ROSTER_LIMIT
 
   return (
-    <div className="-mt-3 flex h-full min-h-0 flex-1 flex-col gap-4">
+    <div className="-mt-3 flex h-full min-h-0 min-w-0 w-full flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold tracking-tight">Human resource</h1>
@@ -367,7 +367,7 @@ export function WorkCalendar({ currentUserId }: WorkCalendarProps) {
             </p>
           ) : null}
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
           <div className="flex items-center gap-1">
             <Button
               type="button"
@@ -398,11 +398,11 @@ export function WorkCalendar({ currentUserId }: WorkCalendarProps) {
             >
               <ChevronRightIcon />
             </Button>
-            <p className="ml-2 min-w-36 text-right text-xs font-medium text-muted-foreground">
+            <p className="min-w-0 flex-1 truncate text-right text-xs font-medium text-muted-foreground sm:ml-2 sm:min-w-36 sm:flex-none">
               {rangeLabel}
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {lanes.map((lane) => {
             const laneIndex =
               lane.kind === "person" ? lane.person.laneIndex : lane.laneIndex

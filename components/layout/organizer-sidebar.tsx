@@ -13,9 +13,42 @@ export function OrganizerSidebar() {
   const [expanded, setExpanded] = useState(false)
 
   return (
+    <>
+      <nav
+        aria-label="Organizer"
+        className="flex w-full min-w-0 shrink-0 gap-1 overflow-x-auto overscroll-x-contain border-b bg-muted/30 px-2 py-1.5 md:hidden"
+      >
+        <Link
+          href="/"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground"
+        >
+          <LayoutGridIcon className="size-4" />
+          Modules
+        </Link>
+        {ORGANIZER_NAV.map((item) => {
+          const active = pathname.startsWith(item.href)
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm",
+                active
+                  ? "bg-background font-medium text-foreground shadow-sm"
+                  : "text-muted-foreground",
+              )}
+            >
+              <Icon className="size-4" />
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
     <aside
       className={cn(
-        "flex shrink-0 flex-col border-r bg-muted/30 transition-[width]",
+        "hidden shrink-0 flex-col border-r bg-muted/30 transition-[width] md:flex",
         expanded ? "w-52" : "w-14",
       )}
     >
@@ -90,5 +123,6 @@ export function OrganizerSidebar() {
         })}
       </nav>
     </aside>
+    </>
   )
 }

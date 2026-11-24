@@ -167,7 +167,7 @@ export function GoalsBoard() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Goals</h1>
@@ -875,7 +875,7 @@ function GoalModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-lg rounded-2xl border bg-background p-5 shadow-xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border bg-background p-5 shadow-xl"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>

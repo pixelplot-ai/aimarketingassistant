@@ -1,7 +1,16 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { ChevronLeftIcon, ChevronRightIcon, Loader2Icon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Loader2Icon,
+  PencilIcon,
+  PlusIcon,
+  SlidersHorizontalIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -117,8 +126,15 @@ export function LeadsBoard() {
   const [stage, setStage] = useState("all")
   const [owner, setOwner] = useState("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [panelMode, setPanelMode] = useState<"view" | "details">("view")
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  function openLead(id: string, mode: "view" | "details") {
+    setPanelMode(mode)
+    setSelectedId(id)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -270,21 +286,39 @@ export function LeadsBoard() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">Leads</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="hidden text-sm text-muted-foreground sm:block">
             Open leads stay in Now, soonest next step first.
           </p>
         </div>
-        <Button type="button" onClick={() => setCreateOpen(true)}>
+        <Button
+          type="button"
+          className="h-11 w-full sm:h-8 sm:w-auto"
+          onClick={() => setCreateOpen(true)}
+        >
           <PlusIcon />
           Add lead
         </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          className={cn(
+            "inline-flex h-11 items-center gap-1.5 rounded-lg border px-3 text-sm lg:hidden",
+            filtersOpen
+              ? "border-foreground bg-foreground text-background"
+              : "bg-card text-muted-foreground",
+          )}
+        >
+          <SlidersHorizontalIcon className="size-4" />
+          Filters
+        </button>
         {(
           [
             ["now", "Now", counts.now],
@@ -297,7 +331,7 @@ export function LeadsBoard() {
             type="button"
             onClick={() => setTab(value)}
             className={cn(
-              "rounded-lg border px-3 py-1.5 text-sm transition-colors",
+              "h-11 rounded-lg border px-3 text-sm transition-colors lg:h-auto lg:py-1.5",
               tab === value
                 ? "border-foreground bg-foreground text-background"
                 : "bg-card text-muted-foreground hover:text-foreground",
@@ -309,8 +343,13 @@ export function LeadsBoard() {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
-        <div className="min-w-48 flex-1 space-y-1.5">
+      <div
+        className={cn(
+          "gap-3 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end",
+          filtersOpen ? "grid" : "hidden lg:flex",
+        )}
+      >
+        <div className="space-y-1.5 sm:col-span-2 lg:min-w-48 lg:flex-1">
           <Label htmlFor="lead-search">Search</Label>
           <Input
             id="lead-search"
@@ -325,7 +364,7 @@ export function LeadsBoard() {
             id="filter-temperature"
             value={temperature}
             onChange={(event) => setTemperature(event.target.value)}
-            className={cn(selectClassName, "min-w-32")}
+            className={selectClassName}
           >
             <option value="all">All</option>
             {LEAD_TEMPERATURES.map((value) => (
@@ -341,7 +380,7 @@ export function LeadsBoard() {
             id="filter-stage"
             value={stage}
             onChange={(event) => setStage(event.target.value)}
-            className={cn(selectClassName, "min-w-36")}
+            className={selectClassName}
           >
             <option value="all">All</option>
             {LEAD_STAGES.map((value) => (
@@ -357,7 +396,7 @@ export function LeadsBoard() {
             id="filter-owner"
             value={owner}
             onChange={(event) => setOwner(event.target.value)}
-            className={cn(selectClassName, "min-w-36")}
+            className={selectClassName}
           >
             <option value="all">All</option>
             <option value="unassigned">Unassigned</option>
@@ -383,7 +422,7 @@ export function LeadsBoard() {
               month={month}
               selectedId={selectedId}
               onMonth={setMonth}
-              onSelect={setSelectedId}
+              onSelect={(id) => openLead(id, "view")}
             />
           )
         ) : (
@@ -398,7 +437,71 @@ export function LeadsBoard() {
               Nothing in {QUEUE_LABELS[tab]}.
             </p>
           ) : (
-            <table className="w-full min-w-[860px] border-collapse text-sm">
+            <>
+            <ul className="divide-y md:hidden">
+              {visible.map((lead) => {
+                const timing = nextStepTiming(lead)
+                return (
+                  <li
+                    key={lead.id}
+                    className={cn(
+                      "flex items-stretch",
+                      selectedId === lead.id && "bg-muted/60",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openLead(lead.id, "view")}
+                      className="flex min-w-0 flex-1 flex-col gap-1 px-3 py-3 text-left"
+                    >
+                      <span className="flex items-start justify-between gap-2">
+                        <span className="font-medium">{leadDisplayName(lead)}</span>
+                        {lead.temperature ? (
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-md px-1.5 py-0.5 text-xs capitalize",
+                              TEMPERATURE_STYLES[lead.temperature],
+                            )}
+                          >
+                            {lead.temperature}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {[lead.job_title, lead.company].filter(Boolean).join(" · ") ||
+                          "No company"}
+                      </span>
+                      <span className="text-xs">
+                        {LEAD_STAGE_LABELS[lead.stage]}
+                        {" · "}
+                        {lead.next_step ? NEXT_STEP_LABELS[lead.next_step] : "No next step"}
+                        {" "}
+                        <span className={TIMING_STYLES[timing]}>
+                          {formatLeadWhen(lead.next_action_on, lead.next_action_time)}
+                        </span>
+                      </span>
+                      {lead.next_action ? (
+                        <span className="text-xs text-muted-foreground">
+                          {lead.next_action}
+                        </span>
+                      ) : null}
+                      <span className="text-xs text-muted-foreground">
+                        {lead.owner_name || "Unassigned"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openLead(lead.id, "details")}
+                      className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 border-l text-xs font-medium"
+                    >
+                      <PencilIcon className="size-4" />
+                      Edit
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+            <table className="hidden w-full min-w-[860px] border-collapse text-sm md:table">
               <thead className="sticky top-0 bg-card text-left text-xs text-muted-foreground">
                 <tr className="border-b">
                   <th className="px-3 py-2 font-medium">Person</th>
@@ -417,7 +520,7 @@ export function LeadsBoard() {
                   return (
                     <tr
                       key={lead.id}
-                      onClick={() => setSelectedId(lead.id)}
+                      onClick={() => openLead(lead.id, "view")}
                       className={cn(
                         "cursor-pointer border-b last:border-b-0 hover:bg-muted/40",
                         selectedId === lead.id && "bg-muted/60",
@@ -472,14 +575,16 @@ export function LeadsBoard() {
                 })}
               </tbody>
             </table>
+            </>
           )}
         </div>
         )}
 
         {selected ? (
           <LeadPanel
-            key={`${selected.id}:${selected.updated_at}`}
+            key={`${selected.id}:${selected.updated_at}:${panelMode}`}
             lead={selected}
+            startMode={panelMode}
             saving={saving}
             onClose={() => setSelectedId(null)}
             onSave={(body) => saveLead(selected.id, body)}
@@ -548,7 +653,7 @@ function LeadCalendar({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
-      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b px-2 py-2">
         <Button
           type="button"
           variant="ghost"
@@ -558,8 +663,17 @@ function LeadCalendar({
         >
           <ChevronLeftIcon />
         </Button>
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium">{label}</p>
+        <p className="min-w-0 flex-1 text-center text-sm font-medium">{label}</p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => onMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+          aria-label="Next month"
+        >
+          <ChevronRightIcon />
+        </Button>
+        <div className="flex w-full justify-center gap-2 sm:w-auto">
           <Button
             type="button"
             variant="outline"
@@ -590,19 +704,10 @@ function LeadCalendar({
             Export PDF
           </Button>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => onMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-          aria-label="Next month"
-        >
-          <ChevronRightIcon />
-        </Button>
       </div>
-      <div className="grid grid-cols-7 border-b text-xs text-muted-foreground">
+      <div className="grid grid-cols-7 border-b text-[10px] text-muted-foreground sm:text-xs">
         {WEEKDAYS.map((day) => (
-          <div key={day} className="px-2 py-1.5 font-medium">
+          <div key={day} className="px-0.5 py-1.5 text-center font-medium sm:px-2">
             {day}
           </div>
         ))}
@@ -616,7 +721,7 @@ function LeadCalendar({
               <div
                 key={cell.key}
                 className={cn(
-                  "min-h-28 border-r border-b p-1 last:border-r-0",
+                  "min-h-16 border-r border-b p-0.5 last:border-r-0 sm:min-h-28 sm:p-1",
                   !cell.inMonth && "bg-muted/30",
                   isToday && "ring-1 ring-sky-300 ring-inset dark:ring-sky-400/70",
                 )}
@@ -671,12 +776,14 @@ function displayPhone(phone: string): string {
 
 function LeadPanel({
   lead,
+  startMode = "view",
   saving,
   onClose,
   onSave,
   onDelete,
 }: {
   lead: OrganizerLead
+  startMode?: "view" | "details"
   saving: boolean
   onClose: () => void
   onSave: (body: Record<string, unknown>) => Promise<boolean>
@@ -684,9 +791,11 @@ function LeadPanel({
 }) {
   const closed = isClosedStage(lead.stage)
   const timing = nextStepTiming(lead)
-  const [mode, setMode] = useState<"view" | "details" | "step" | "close">("view")
+  const [mode, setMode] = useState<"view" | "details" | "step" | "close">(startMode)
   const [showAllHistory, setShowAllHistory] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [firstName, setFirstName] = useState(lead.first_name)
+  const [lastName, setLastName] = useState(lead.last_name)
   const [email, setEmail] = useState(lead.email)
   const [phone, setPhone] = useState(lead.phone)
   const [company, setCompany] = useState(lead.company)
@@ -731,10 +840,17 @@ function LeadPanel({
   }
 
   return (
-    <aside className="flex w-full max-w-lg shrink-0 flex-col overflow-auto rounded-xl border bg-card max-lg:fixed max-lg:inset-y-0 max-lg:right-0 max-lg:z-40 max-lg:max-w-lg max-lg:rounded-none">
-      <div className="flex items-start justify-between gap-3 border-b p-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">
+    <>
+    <button
+      type="button"
+      className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+      aria-label="Close lead"
+      onClick={onClose}
+    />
+    <aside className="flex w-full max-w-lg shrink-0 flex-col overflow-auto rounded-xl border bg-card max-lg:fixed max-lg:inset-0 max-lg:z-40 max-lg:max-w-none max-lg:rounded-none max-lg:pt-[env(safe-area-inset-top)] max-lg:pb-[env(safe-area-inset-bottom)]">
+      <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-card p-4">
+        <div className="min-w-0">
+          <h2 className="break-words text-lg font-semibold tracking-tight">
             {[lead.salutation, leadDisplayName(lead)].filter(Boolean).join(" ")}
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -742,31 +858,34 @@ function LeadPanel({
             {lead.company ? ` · ${lead.company}` : ""}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={onClose}
-          aria-label="Close"
-        >
-          <XIcon />
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {mode === "view" ? (
+            <Button
+              type="button"
+              className="h-11 px-4 sm:h-8"
+              onClick={() => setMode("details")}
+            >
+              <PencilIcon />
+              Edit
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="size-11 sm:size-7"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <XIcon />
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 p-3">
       <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2 px-0.5">
+        <div className="px-0.5">
           <h3 className="text-sm font-semibold">Details</h3>
-          {mode === "view" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setMode("details")}
-            >
-              Edit
-            </Button>
-          ) : null}
         </div>
         {mode === "details" ? (
           <form
@@ -774,6 +893,8 @@ function LeadPanel({
             onSubmit={(event) => {
               event.preventDefault()
               void onSave({
+                firstName,
+                lastName,
                 email,
                 phone,
                 company,
@@ -784,26 +905,57 @@ function LeadPanel({
               })
             }}
           >
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="lead-first">First name</Label>
+                <Input
+                  id="lead-first"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  disabled={saving}
+                  autoComplete="given-name"
+                  className="h-11 md:h-8"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lead-last">Last name</Label>
+                <Input
+                  id="lead-last"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  disabled={saving}
+                  autoComplete="family-name"
+                  className="h-11 md:h-8"
+                />
+              </div>
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="lead-email">Email</Label>
               <Input
                 id="lead-email"
                 type="email"
+                inputMode="email"
+                autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 disabled={saving}
+                className="h-11 md:h-8"
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="lead-phone">Phone</Label>
               <Input
                 id="lead-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 disabled={saving}
+                className="h-11 md:h-8"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="lead-company">Company</Label>
                 <Input
@@ -811,6 +963,8 @@ function LeadPanel({
                   value={company}
                   onChange={(event) => setCompany(event.target.value)}
                   disabled={saving}
+                  autoComplete="organization"
+                  className="h-11 md:h-8"
                 />
               </div>
               <div className="space-y-1.5">
@@ -820,10 +974,12 @@ function LeadPanel({
                   value={jobTitle}
                   onChange={(event) => setJobTitle(event.target.value)}
                   disabled={saving}
+                  autoComplete="organization-title"
+                  className="h-11 md:h-8"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="lead-owner">Owner</Label>
                 <Input
@@ -831,6 +987,7 @@ function LeadPanel({
                   value={ownerName}
                   onChange={(event) => setOwnerName(event.target.value)}
                   disabled={saving}
+                  className="h-11 md:h-8"
                 />
               </div>
               <div className="space-y-1.5">
@@ -859,18 +1016,20 @@ function LeadPanel({
                 onChange={(event) => setNotes(event.target.value)}
                 rows={3}
                 disabled={saving}
+                className="text-base md:text-sm"
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="sticky bottom-0 z-10 -mx-3 flex flex-col-reverse gap-2 border-t border-sky-500/20 bg-sky-500/10 px-3 py-3 sm:static sm:mx-0 sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
               <Button
                 type="button"
                 variant="outline"
+                className="h-11 sm:h-8"
                 disabled={saving}
                 onClick={() => setMode("view")}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" className="h-11 sm:h-8" disabled={saving}>
                 {saving ? <Loader2Icon className="animate-spin" /> : null}
                 Save
               </Button>
@@ -1279,6 +1438,7 @@ function LeadPanel({
         />
       ) : null}
     </aside>
+    </>
   )
 }
 
@@ -1425,7 +1585,7 @@ function CreateLeadDialog({
   const [notes, setNotes] = useState("")
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex sm:items-center sm:justify-center sm:p-4">
       <button
         type="button"
         className="absolute inset-0 bg-black/40"
@@ -1435,7 +1595,8 @@ function CreateLeadDialog({
       <form
         role="dialog"
         aria-modal="true"
-        className="relative z-10 w-full max-w-md space-y-3 rounded-xl border bg-background p-5 shadow-lg"
+        aria-labelledby="add-lead-title"
+        className="relative z-10 flex h-dvh w-full flex-col bg-background pt-[env(safe-area-inset-top)] sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-md sm:rounded-xl sm:border sm:pt-0 sm:shadow-lg"
         onSubmit={(event) => {
           event.preventDefault()
           void onCreate({
@@ -1452,24 +1613,30 @@ function CreateLeadDialog({
           })
         }}
       >
-        <div className="mb-1 flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">Add lead</h2>
+        <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+          <h2 id="add-lead-title" className="text-lg font-semibold tracking-tight">
+            Add lead
+          </h2>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
+            className="size-11 sm:size-7"
             onClick={onClose}
             aria-label="Close"
           >
             <XIcon />
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="new-first">First name</Label>
             <Input
               id="new-first"
               value={firstName}
+              autoComplete="given-name"
+              className="h-11 md:h-8"
               onChange={(event) => setFirstName(event.target.value)}
             />
           </div>
@@ -1478,6 +1645,8 @@ function CreateLeadDialog({
             <Input
               id="new-last"
               value={lastName}
+              autoComplete="family-name"
+              className="h-11 md:h-8"
               onChange={(event) => setLastName(event.target.value)}
             />
           </div>
@@ -1487,7 +1656,10 @@ function CreateLeadDialog({
           <Input
             id="new-email"
             type="email"
+            inputMode="email"
+            autoComplete="email"
             value={email}
+            className="h-11 md:h-8"
             onChange={(event) => setEmail(event.target.value)}
           />
         </div>
@@ -1495,16 +1667,22 @@ function CreateLeadDialog({
           <Label htmlFor="new-phone">Phone</Label>
           <Input
             id="new-phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
             value={phone}
+            className="h-11 md:h-8"
             onChange={(event) => setPhone(event.target.value)}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="new-company">Company</Label>
             <Input
               id="new-company"
               value={company}
+              autoComplete="organization"
+              className="h-11 md:h-8"
               onChange={(event) => setCompany(event.target.value)}
             />
           </div>
@@ -1531,6 +1709,8 @@ function CreateLeadDialog({
           <Input
             id="new-title"
             value={jobTitle}
+            autoComplete="organization-title"
+            className="h-11 md:h-8"
             onChange={(event) => setJobTitle(event.target.value)}
           />
         </div>
@@ -1541,14 +1721,23 @@ function CreateLeadDialog({
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             rows={3}
+            className="text-base md:text-sm"
           />
         </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+        </div>
+        <div className="flex gap-2 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 flex-1 sm:h-8 sm:flex-none"
+            onClick={onClose}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button
             type="submit"
+            className="h-11 flex-1 sm:h-8 sm:flex-none"
             disabled={
               saving || (!firstName.trim() && !lastName.trim() && !email.trim())
             }

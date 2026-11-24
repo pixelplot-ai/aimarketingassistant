@@ -22,8 +22,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { error } = await searchParams
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="absolute right-6 top-6">
+    <div className="relative flex min-h-dvh items-center justify-center bg-background p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6">
+      <div className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))]">
         <ThemeToggle />
       </div>
       <Card className="w-full max-w-md">

@@ -13,14 +13,16 @@ export default async function AppLayout({
   const user = await requireAuth()
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center justify-between border-b px-6 py-4">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background pb-[env(safe-area-inset-bottom)]">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:px-6">
         <Link href="/" className="text-sm font-medium">
           Pixelplot
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <p className="text-sm text-muted-foreground">{user.email}</p>
+          <p className="hidden max-w-[12rem] truncate text-sm text-muted-foreground sm:block lg:max-w-xs">
+            {user.email}
+          </p>
           <form action={signOut}>
             <Button type="submit" variant="outline" size="sm">
               Sign out
